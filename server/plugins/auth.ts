@@ -1,17 +1,27 @@
 import { createAuthPlugin } from "@agent-native/core/server";
 
-const rawAppTitle = "Power Desk Scaffold";
-const appTitle = rawAppTitle === "{" + "{APP_TITLE}}" ? "Chat" : rawAppTitle;
+const appTitle = "Power Desk";
 
 export default createAuthPlugin({
+  rootAuth: false,
+  publicPaths: [
+    "/",
+    "/home",
+    "/ledger",
+    "/variance",
+    "/break-even",
+    "/generators",
+    "/settings",
+    "/about",
+  ],
   marketing: {
     appName: appTitle,
     tagline:
-      "Start from a chat-first agent-native app and add actions, screens, and workflows as you grow.",
+      "A fuel and generator ledger for Nigerian small businesses operated via Telegram, spotting unexplained fuel variance and calculating solar break-even.",
     features: [
-      "Full-page chat with durable threads and tool call history",
-      "Add actions once and use them from chat, UI, HTTP, MCP, A2A, and CLI",
-      "Plug in your own agent runtime or build on the included app-agent loop",
+      "Track generator run-hours and fuel purchases in Nigerian Naira",
+      "Spot unexplained fuel variance with benign operational checks",
+      "Calculate 5-year solar and battery break-even paybacks with Generative UI",
     ],
   },
 });

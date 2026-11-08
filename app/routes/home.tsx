@@ -1,9 +1,1 @@
-import { redirect } from "react-router";
-
-export function loader() {
-  return redirect("/");
-}
-
-export default function HomeRoute() {
-  return null;
-}
+export { default, meta } from "./_index";

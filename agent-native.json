@@ -1,4 +1,7 @@
 {
+  "app": {
+    "homePath": "/"
+  },
   "agent": {
     "engine": "openai",
     "model": "muse-spark-1.3"
