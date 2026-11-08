@@ -31,35 +31,37 @@ export default defineAction({
       .orderBy(desc(runEntries.createdAt))
       .limit(1);
 
-    // If no real entries, check recent entry in general
-    const fallbackFuel = latestFuel.length > 0 ? latestFuel[0] : (await db.select().from(fuelEntries).orderBy(desc(fuelEntries.createdAt)).limit(1))[0];
-    const fallbackRun = latestRun.length > 0 ? latestRun[0] : (await db.select().from(runEntries).orderBy(desc(runEntries.createdAt)).limit(1))[0];
+    const userFuel = latestFuel[0];
+    const userRun = latestRun[0];
 
-    if (!fallbackFuel && !fallbackRun) {
-      return { success: false, message: "No entries found to undo." };
+    if (!userFuel && !userRun) {
+      return {
+        success: false,
+        message: "No user-logged entries found to undo. Sample demonstration entries cannot be undone.",
+      };
     }
 
     const allGens = await db.select().from(generators);
     const genMap = new Map(allGens.map((g) => [g.id, g.name]));
 
-    // Determine which is newer
-    if (fallbackFuel && (!fallbackRun || fallbackFuel.createdAt >= fallbackRun.createdAt)) {
-      await db.delete(fuelEntries).where(eq(fuelEntries.id, fallbackFuel.id));
-      const genName = genMap.get(fallbackFuel.generatorId) ?? "Generator";
+    // Determine which user entry is newer
+    if (userFuel && (!userRun || userFuel.createdAt >= userRun.createdAt)) {
+      await db.delete(fuelEntries).where(eq(fuelEntries.id, userFuel.id));
+      const genName = genMap.get(userFuel.generatorId) ?? "Generator";
       return {
         success: true,
         type: "fuel",
-        deletedEntry: fallbackFuel,
-        message: `Undone: Removed fuel entry of ${fallbackFuel.litres}L (${formatNaira(fallbackFuel.totalCost)}) on ${fallbackFuel.date} for ${genName}.`,
+        deletedEntry: userFuel,
+        message: `Undone: Removed fuel entry of ${userFuel.litres}L (${formatNaira(userFuel.totalCost)}) on ${userFuel.date} for ${genName}.`,
       };
-    } else if (fallbackRun) {
-      await db.delete(runEntries).where(eq(runEntries.id, fallbackRun.id));
-      const genName = genMap.get(fallbackRun.generatorId) ?? "Generator";
+    } else if (userRun) {
+      await db.delete(runEntries).where(eq(runEntries.id, userRun.id));
+      const genName = genMap.get(userRun.generatorId) ?? "Generator";
       return {
         success: true,
         type: "run",
-        deletedEntry: fallbackRun,
-        message: `Undone: Removed run entry of ${fallbackRun.hours}h on ${fallbackRun.date} for ${genName}.`,
+        deletedEntry: userRun,
+        message: `Undone: Removed run entry of ${userRun.hours}h on ${userRun.date} for ${genName}.`,
       };
     }
 

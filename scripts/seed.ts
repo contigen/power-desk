@@ -1,6 +1,6 @@
 import { getDb, businesses, generators, fuelEntries, runEntries, varianceFlags, settings, solarQuotes } from "../server/db/index.js";
 import { ensureTables } from "../server/db/init.js";
-import { eq, and } from "drizzle-orm";
+import { eq, and, like } from "drizzle-orm";
 
 export async function runSeed() {
   console.log("Ensuring database tables exist...");
@@ -12,7 +12,7 @@ export async function runSeed() {
   try {
     await db.delete(fuelEntries).where(eq(fuelEntries.isSample, true));
     await db.delete(runEntries).where(eq(runEntries.isSample, true));
-    await db.delete(varianceFlags).execute();
+    await db.delete(varianceFlags).where(like(varianceFlags.id, "flag-sample-%"));
     await db.delete(solarQuotes).where(eq(solarQuotes.businessId, "biz-sample-adewale"));
     await db.delete(generators).where(eq(generators.businessId, "biz-sample-adewale"));
     await db.delete(settings).where(eq(settings.businessId, "biz-sample-adewale"));
@@ -120,25 +120,45 @@ export async function runSeed() {
   const fuelRows = [];
   const runRows = [];
 
-  // Seed data simulation: 30 days
-  // We explicitly want:
-  // Week 1 (Oct 12-18): Benign explained flag (+20.8% variance)
-  // Week 2 (Oct 19-25): Consistent (~4% variance, within tolerance)
-  // Week 3 (Oct 26-Nov 1): Unexplained variance (+22.5%, open flag)
-  // Week 4 (Nov 2-Nov 8): Consistent (~2% variance)
+  // Seed data simulation: 30 days (Oct 10, 2026 to Nov 8, 2026)
+  // Calibrated benchmarks:
+  // Week 1 (Oct 12-18): Benign explained flag (+20.8% variance, 50L bought vs 41.4L expected)
+  // Week 2 (Oct 19-25): Consistent (~0% variance, 45L bought vs 45.0L expected)
+  // Week 3 (Oct 26-Nov 1): Unexplained variance (+29.9% variance, 60L bought vs 46.2L expected, open flag)
+  // Week 4 (Nov 2-Nov 8): Consistent (~0.4% variance, 50L bought vs 49.8L expected)
 
   let fuelCounter = 1;
   let runCounter = 1;
+
+  function getHoursA(d: number): number {
+    if (d >= 2 && d <= 8) {
+      const w1 = [5.0, 4.5, 5.5, 4.5, 5.0, 5.0, 5.0];
+      return w1[d - 2] ?? 5.0;
+    }
+    if (d >= 9 && d <= 15) {
+      const w2 = [5.5, 5.0, 5.5, 5.5, 5.5, 5.0, 5.5];
+      return w2[d - 9] ?? 5.5;
+    }
+    if (d >= 16 && d <= 22) {
+      const w3 = [5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5];
+      return w3[d - 16] ?? 5.5;
+    }
+    if (d >= 23 && d <= 29) {
+      const w4 = [6.0, 6.0, 6.0, 6.0, 6.0, 5.5, 6.0];
+      return w4[d - 23] ?? 6.0;
+    }
+    return 5.5;
+  }
 
   for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
     const curDate = new Date(baseDate.getTime() + dayOffset * 24 * 60 * 60 * 1000);
     const dateStr = curDate.toISOString().split("T")[0] || "";
 
-    // Gen A runs every day, 5 to 8 hours
-    // Gen B runs on occasional days (e.g. days 3, 8, 14, 21, 27) for 2 to 4 hours
-    let hoursA = 5.5 + ((dayOffset * 7) % 3.5); // 5.5 to 8.5
-    hoursA = Math.round(hoursA * 10) / 10;
-    const bandA = dayOffset % 5 === 0 ? "heavy" : (dayOffset % 4 === 0 ? "light" : "typical");
+    // Gen A runs daily
+    const hoursA = getHoursA(dayOffset);
+    let bandA: "light" | "typical" | "heavy" = "typical";
+    if (dayOffset === 5 || dayOffset === 20) bandA = "heavy";
+    if (dayOffset === 3 || dayOffset === 17) bandA = "light";
 
     runRows.push({
       id: `run-sample-a-${runCounter++}`,
@@ -153,8 +173,9 @@ export async function runSeed() {
       updatedAt: curDate.toISOString(),
     });
 
-    if (dayOffset % 6 === 2) {
-      const hoursB = 2.5;
+    // Gen B runs on day 6 and day 20 during Gen A maintenance
+    if (dayOffset === 6 || dayOffset === 20) {
+      const hoursB = 3.0;
       runRows.push({
         id: `run-sample-b-${runCounter++}`,
         generatorId: "gen-sample-b",
@@ -167,36 +188,53 @@ export async function runSeed() {
         createdAt: curDate.toISOString(),
         updatedAt: curDate.toISOString(),
       });
+
+      // Refuel for Gen B
+      fuelRows.push({
+        id: `fuel-sample-b-${fuelCounter++}`,
+        generatorId: "gen-sample-b",
+        date: dateStr,
+        litres: 3.0,
+        pricePerLitre: 1320,
+        totalCost: 3.0 * 1320,
+        supplier: "TotalEnergies Mushin",
+        source: "seed",
+        receiptUploadId: null,
+        note: "Firman backup tank top-up (3L)",
+        isSample: true,
+        createdAt: curDate.toISOString(),
+        updatedAt: curDate.toISOString(),
+      });
     }
 
-    // Fuel purchases every 2 or 3 days in jerrycans (10L, 15L, 20L, 25L)
-    // Pump price drifts between 1240 and 1510 NGN/L
-    const isFuelDay = (dayOffset % 3 === 0);
-    if (isFuelDay) {
-      let litres = 20;
-      // Introduce week-specific variance adjustments:
-      // Week 1 (day 2 to 8, Oct 12-18): extra fuel bought (+10L)
-      if (dayOffset === 3) litres = 25;
-      if (dayOffset === 6) litres = 25;
+    // Fuel purchases for Gen A
+    // Pump price drifts between 1250 and 1490 NGN/L
+    let litresA = 0;
+    if (dayOffset === 0) litresA = 20;
+    if (dayOffset === 3) litresA = 25;
+    if (dayOffset === 6) litresA = 25;
+    if (dayOffset === 9) litresA = 25;
+    if (dayOffset === 13) litresA = 20;
+    if (dayOffset === 17) litresA = 30;
+    if (dayOffset === 20) litresA = 30;
+    if (dayOffset === 24) litresA = 25;
+    if (dayOffset === 27) litresA = 25;
 
-      // Week 3 (day 16 to 22, Oct 26-Nov 1): Unexplained variance
-      if (dayOffset === 18) litres = 25;
-      if (dayOffset === 21) litres = 25;
-
-      const pricePerLitre = 1250 + ((dayOffset * 17) % 260); // 1250 - 1510
-      const totalCost = litres * pricePerLitre;
+    if (litresA > 0) {
+      const pricePerLitre = 1250 + ((dayOffset * 17) % 240); // 1250 - 1490
+      const totalCost = litresA * pricePerLitre;
 
       fuelRows.push({
         id: `fuel-sample-a-${fuelCounter++}`,
         generatorId: "gen-sample-a",
         date: dateStr,
-        litres: litres,
+        litres: litresA,
         pricePerLitre: pricePerLitre,
         totalCost: totalCost,
         supplier: dayOffset % 2 === 0 ? "TotalEnergies Mushin" : "NNPC Retail Agege Motor Rd",
         source: "seed",
         receiptUploadId: null,
-        note: `Jerrycan refuel (${litres}L)`,
+        note: `Jerrycan refuel (${litresA}L)`,
         isSample: true,
         createdAt: curDate.toISOString(),
         updatedAt: curDate.toISOString(),
@@ -234,11 +272,11 @@ export async function runSeed() {
     id: "flag-sample-oct26",
     generatorId: "gen-sample-a",
     weekStart: "2026-10-26",
-    litresBought: 50.0,
-    litresExpected: 40.8,
-    varianceLitres: 9.2,
-    variancePct: 22.5,
-    estimatedNairaImpact: 9.2 * 1380,
+    litresBought: 60.0,
+    litresExpected: 46.2,
+    varianceLitres: 13.8,
+    variancePct: 29.9,
+    estimatedNairaImpact: 13.8 * 1380,
     status: "open",
     explanation: null,
     createdAt: "2026-11-01T20:00:00Z",

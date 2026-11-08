@@ -70,7 +70,7 @@ export const varianceFlags = table("variance_flags", {
   updatedAt: text("updated_at").notNull(),
 });
 
-export const settings = table("settings", {
+export const settings = table("app_settings", {
   id: text("id").primaryKey(),
   businessId: text("business_id").notNull(),
   tolerancePct: real("tolerance_pct").notNull().default(15),

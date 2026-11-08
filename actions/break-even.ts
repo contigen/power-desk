@@ -18,7 +18,7 @@ export default defineAction({
     batteryYearsLife: z.number().min(1).max(15).optional().describe("Expected lifespan of battery pack in years (defaults to 4 years)."),
     horizonYears: z.number().min(1).max(20).optional().describe("Analysis horizon in years (defaults to 5 years)."),
   }),
-  http: { method: "POST" },
+  http: { method: "GET" },
   mcpTool: true,
   publicAgent: {
     expose: true,

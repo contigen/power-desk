@@ -76,7 +76,7 @@ export default runMigrations(
           updated_at TEXT NOT NULL
         );
 
-        CREATE TABLE IF NOT EXISTS settings (
+        CREATE TABLE IF NOT EXISTS app_settings (
           id TEXT PRIMARY KEY,
           business_id TEXT NOT NULL,
           tolerance_pct REAL NOT NULL DEFAULT 15,

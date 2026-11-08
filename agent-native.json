@@ -6,7 +6,7 @@
       "fuel_entries": "Fuel purchases ledger — reviewed.",
       "run_entries": "Generator operating runtime sessions — reviewed.",
       "variance_flags": "Calculated weekly variance flags — reviewed.",
-      "settings": "Application settings and tolerance configurations — reviewed.",
+      "app_settings": "Application settings and tolerance configurations — reviewed.",
       "solar_quotes": "Solar replacement quotes and scenarios — reviewed.",
       "receipt_uploads": "Uploaded fuel receipt metadata — reviewed."
     }

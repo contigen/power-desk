@@ -34,7 +34,7 @@ export default defineAction({
       .optional()
       .describe("If true, re-analyzes all historical weeks in the database."),
   }),
-  http: { method: "POST" },
+  http: { method: "GET" },
   run: async (input) => {
     const db = getDb();
 
