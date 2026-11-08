@@ -1,4 +1,8 @@
 {
+  "agent": {
+    "engine": "openai",
+    "model": "muse-spark-1.3"
+  },
   "doctor": {
     "dbToolScopingDenylist": {
       "businesses": "Single-tenant SME business profile table — reviewed.",
