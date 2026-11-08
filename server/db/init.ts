@@ -107,6 +107,19 @@ export const INIT_DDL = `
     extracted_data TEXT,
     created_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS integration_configs (
+    platform TEXT NOT NULL,
+    config_key TEXT NOT NULL,
+    config_data TEXT NOT NULL,
+    owner TEXT,
+    updated_at BIGINT NOT NULL,
+    PRIMARY KEY (platform, config_key)
+  );
+
+  INSERT INTO integration_configs (platform, config_key, config_data, owner, updated_at)
+  VALUES ('telegram', 'default', '{"enabled":true}', NULL, 1710000000000)
+  ON CONFLICT (platform, config_key) DO UPDATE SET config_data='{"enabled":true}';
 `;
 
 export async function ensureTables() {
