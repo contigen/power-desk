@@ -1,4 +1,4 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration, isRouteErrorResponse, Link } from "react-router";
 import { useCallback, useState } from "react";
 import { useNavigationState } from "@/hooks/use-navigation-state";
 import { useQueryClient } from "@tanstack/react-query";
@@ -140,18 +140,39 @@ export default function Root() {
 
 export function ErrorBoundary({ error }: { error: unknown }) {
   console.error("Application error:", error);
+  const is404 = isRouteErrorResponse(error) && error.status === 404;
+
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center p-6 text-center">
-      <h2 className="text-xl font-bold text-destructive">Application Error</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {(error as Error)?.message ?? "An unexpected error occurred."}
-      </p>
-      <button
-        onClick={() => window.location.reload()}
-        className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-      >
-        Reload Page
-      </button>
+    <div className="flex h-screen w-full flex-col items-center justify-center p-6 text-center bg-background text-foreground">
+      <div className="max-w-md space-y-4">
+        <div className="size-14 mx-auto rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 text-2xl font-bold">
+          ⚡
+        </div>
+        <h2 className="text-xl font-bold text-foreground">
+          {is404 ? "Page Not Found (404)" : "Application Error"}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {is404
+            ? "The page or route you are looking for does not exist."
+            : (error as Error)?.message ?? "An unexpected error occurred."}
+        </p>
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Link
+            to="/"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Return to Desk
+          </Link>
+          {!is404 && (
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              Reload Page
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
