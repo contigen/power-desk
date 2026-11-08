@@ -3,18 +3,14 @@ import { useCallback, useState } from "react";
 import { useNavigationState } from "@/hooks/use-navigation-state";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
-import { useDbSync } from "@agent-native/core/client";
-import {
-  AppProviders,
-  CommandMenu,
-  appPath,
-  configureTracking,
-  createAgentNativeQueryClient,
-  getLocaleInitScript,
-  getThemeInitScript,
-  useCommandMenuShortcut,
-  useT,
-} from "@agent-native/core/client";
+import { useDbSync } from "@agent-native/core/client/hooks";
+import { createAgentNativeQueryClient } from "@agent-native/core/client/hooks";
+import { appPath } from "@agent-native/core/client/api-path";
+import { configureTracking } from "@agent-native/core/client/analytics";
+import { getLocaleInitScript, useT } from "@agent-native/core/client/i18n";
+import { getThemeInitScript } from "@agent-native/core/client/theme";
+import { AppProviders } from "@agent-native/toolkit/app/providers";
+import { CommandMenu, useCommandMenuShortcut } from "@agent-native/toolkit/app/shared";
 import { IconSun, IconMoon } from "@tabler/icons-react";
 import changelog from "../CHANGELOG.md?raw";
 import { Layout as AppLayout } from "@/components/layout/Layout";
@@ -27,7 +23,7 @@ import { i18nCatalog } from "./i18n";
 configureTracking({
   getDefaultProps: (_name, properties) => ({
     ...properties,
-    app: "power-desk-scaffold",
+    app: "power-desk",
     template: "chat",
   }),
 });
@@ -58,7 +54,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           dangerouslySetInnerHTML={{ __html: LOCALE_INIT_SCRIPT }}
         />
         <link rel="manifest" href={appPath("/manifest.json")} />
-        <meta name="theme-color" content="#18181B" />
+        <meta name="theme-color" content="#d97706" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
@@ -142,4 +138,20 @@ export default function Root() {
   );
 }
 
-export { ErrorBoundary } from "@agent-native/core/client";
+export function ErrorBoundary({ error }: { error: unknown }) {
+  console.error("Application error:", error);
+  return (
+    <div className="flex h-screen w-full flex-col items-center justify-center p-6 text-center">
+      <h2 className="text-xl font-bold text-destructive">Application Error</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {(error as Error)?.message ?? "An unexpected error occurred."}
+      </p>
+      <button
+        onClick={() => window.location.reload()}
+        className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+      >
+        Reload Page
+      </button>
+    </div>
+  );
+}

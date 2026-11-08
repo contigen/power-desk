@@ -1,9 +1,6 @@
-import {
-  appBasePath,
-  appPath,
-  markAgentChatHomeHandoff,
-  useAgentRouteState,
-} from "@agent-native/core/client";
+import { appBasePath, appPath } from "@agent-native/core/client/api-path";
+import { markAgentChatHomeHandoff } from "@agent-native/core/client/agent-chat";
+import { useAgentRouteState } from "@agent-native/core/client/navigation";
 import { useLocation } from "react-router";
 import { TAB_ID } from "@/lib/tab-id";
 
@@ -45,7 +42,7 @@ function pathnameFromPath(path: string): string {
 
 function threadIdFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/chat\/([^/]+)/);
-  if (!match) return null;
+  if (!match || !match[1]) return null;
   try {
     const value = decodeURIComponent(match[1]).trim();
     return value || null;
@@ -55,28 +52,35 @@ function threadIdFromPath(pathname: string): string | null {
 }
 
 function viewForPath(pathname: string): string {
-  if (isChatPath(pathname)) return "chat";
-  if (pathname.startsWith("/database")) return "database";
-  if (pathname.startsWith("/extensions")) return "extensions";
-  if (pathname.startsWith("/observability")) return "observability";
-  if (pathname.startsWith("/team")) return "team";
-  return "chat";
+  if (isChatPath(pathname)) return "desk";
+  if (pathname.startsWith("/ledger")) return "ledger";
+  if (pathname.startsWith("/variance")) return "variance";
+  if (pathname.startsWith("/break-even")) return "break-even";
+  if (pathname.startsWith("/generators")) return "generators";
+  if (pathname.startsWith("/settings")) return "settings";
+  if (pathname.startsWith("/about")) return "about";
+  return "desk";
 }
 
 function pathForView(view?: string): string {
   switch (view) {
+    case "desk":
     case "chat":
     case "home":
-    case "ask":
       return "/";
-    case "database":
-      return "/database";
-    case "extensions":
-      return "/extensions";
-    case "observability":
-      return "/observability";
-    case "team":
-      return "/team";
+    case "ledger":
+      return "/ledger";
+    case "variance":
+      return "/variance";
+    case "break-even":
+    case "solar":
+      return "/break-even";
+    case "generators":
+      return "/generators";
+    case "settings":
+      return "/settings";
+    case "about":
+      return "/about";
     default:
       return "/";
   }

@@ -1,0 +1,20 @@
+# Power Desk
+> A fuel and generator ledger for Nigerian small businesses operated via Telegram, spotting unexplained fuel variance and showing when solar pays back.
+
+## Overview
+Nigeria's "shadow grid" of backup generators serves millions of MSMEs spending billions of dollars annually on petrol and diesel. Power Desk replaces chaotic notebooks with an automated Telegram agent ledger, spotting unexplained fuel variance and calculating solar payback.
+
+## Core Capabilities & Endpoints
+- Ledger: Merged chronological view of litres bought, pump prices (N/L), total Naira spend, and run-hours.
+- Variance Analysis: Compares actual litres bought against consumption bands (light, typical, heavy load) to flag unexplained fuel variance with estimated Naira impact.
+- Solar Break-Even: Interactive simulator computing generator monthly costs vs solar capital + battery replacement upkeep.
+- MCP Server: Available at `/_agent-native/mcp` for external agent integrations (e.g., accounting agents querying `get-ledger` and `export-ledger`).
+
+## Key Sourced Anchors
+- NBS national average petrol price: N1,532.93/L (April 2026); Lagos retail survey N1,200 to N1,350/L (May 2026).
+- 3.2 kVA Petrol Generator (GE 3500 KBM): 1.2 L/h at 75% load, 4L tank (operated via jerrycan refueling).
+- Lagos State / SEforALL MSME fuel spend report: N5.3 trillion spent annually on generator fueling.
+
+## Public Mirrors
+- [About & Data Honesty](/about.md): Complete consumption model, sample data disclosures, and source citations.
+- [Break-Even Calculator](/break-even): Native payback calculator and solar quote comparison.

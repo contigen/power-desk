@@ -1,11 +1,3 @@
-const rawAppName = "power-desk-scaffold";
-const rawAppTitle = "Power Desk Scaffold";
-
-const APP_NAME_PLACEHOLDER = "{" + "{APP_NAME}}";
-const APP_TITLE_PLACEHOLDER = "{" + "{APP_TITLE}}";
-
-export const APP_NAME =
-  rawAppName === APP_NAME_PLACEHOLDER ? "chat" : rawAppName;
-
-export const APP_TITLE =
-  rawAppTitle === APP_TITLE_PLACEHOLDER ? "Chat" : rawAppTitle;
+export const APP_NAME = "power-desk";
+export const APP_TITLE = "Power Desk";
+export const APP_DESCRIPTION = "A fuel and generator ledger for Nigerian small businesses operated via Telegram, spotting unexplained fuel variance and showing when solar pays back.";

@@ -36,6 +36,13 @@ data/*.db-wal
 data/uploads/
 data/settings.json
 data/.sessions.json
+data/pglite/
+
+# Build and deployment outputs
+.output/
+build/
+.deploy-tmp/
+.agent-native/
 
 # Learnings (personal preferences and memory — use learnings.defaults.md for tracked defaults)
 learnings.md

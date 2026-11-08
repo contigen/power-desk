@@ -4,14 +4,16 @@ import { IconMenu2 } from "@tabler/icons-react";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { HeaderActionsProvider } from "./HeaderActions";
+import { useT } from "@agent-native/core/client/i18n";
 import {
   AgentSidebar,
   focusAgentChat,
+} from "@agent-native/toolkit/app/chat";
+import {
   navigateWithAgentChatViewTransition,
   useAgentChatHomeHandoff,
   useAgentChatHomeHandoffLinks,
-  useT,
-} from "@agent-native/core/client";
+} from "@agent-native/toolkit/app/chat/agentkit-chat/rail";
 import { APP_TITLE } from "@/lib/app-config";
 import { TAB_ID } from "@/lib/tab-id";
 import { Button } from "@/components/ui/button";
@@ -26,20 +28,10 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const SIDEBAR_COLLAPSE_KEY = "chat.sidebar.collapsed";
+const SIDEBAR_COLLAPSE_KEY = "power-desk.sidebar.collapsed";
 
-/**
- * Routes whose page renders its own toolbar. Layout still wraps these with the
- * left Sidebar and agent surfaces but skips the global Header so they don't
- * double-stack chrome.
- */
 function routeOwnsToolbar(pathname: string): boolean {
-  return (
-    pathname === "/" ||
-    pathname.startsWith("/chat/") ||
-    pathname === "/database" ||
-    pathname.startsWith("/extensions")
-  );
+  return pathname === "/" || pathname.startsWith("/chat/");
 }
 
 export function Layout({ children }: LayoutProps) {
@@ -47,9 +39,8 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const t = useT();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const isChatRoute =
-    location.pathname === "/" || location.pathname.startsWith("/chat/");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isChatRoute = location.pathname === "/" || location.pathname.startsWith("/chat/");
   const chatHomeHandoffActive = useAgentChatHomeHandoff({
     storageKey: "chat",
     activePath: location.pathname,
@@ -65,30 +56,19 @@ export function Layout({ children }: LayoutProps) {
   }, [location.pathname]);
 
   useEffect(() => {
-    const closeMobileSidebar = () => setMobileSidebarOpen(false);
-    window.addEventListener("agent-chat:open-thread", closeMobileSidebar);
-    return () => {
-      window.removeEventListener("agent-chat:open-thread", closeMobileSidebar);
-    };
-  }, []);
-
-  useEffect(() => {
     try {
       const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_KEY);
       if (stored !== null) setSidebarCollapsed(stored === "1");
     } catch {
-      // Ignore storage access errors; the default collapsed state still works.
+      // Ignore
     }
   }, []);
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(
-        SIDEBAR_COLLAPSE_KEY,
-        sidebarCollapsed ? "1" : "0",
-      );
+      window.localStorage.setItem(SIDEBAR_COLLAPSE_KEY, sidebarCollapsed ? "1" : "0");
     } catch {
-      // Ignore storage access errors.
+      // Ignore
     }
   }, [sidebarCollapsed]);
 
@@ -101,17 +81,19 @@ export function Layout({ children }: LayoutProps) {
   const contentFrame = (
     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
       {isChatRoute ? (
-        <div className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-card px-3 md:hidden">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileSidebarOpen(true)}
-            aria-label={t("navigation.openNavigation")}
-          >
-            <IconMenu2 className="size-4" />
-          </Button>
-          <span className="truncate text-sm font-semibold">{APP_TITLE}</span>
+        <div className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileSidebarOpen(true)}
+              aria-label={t("navigation.openNavigation")}
+            >
+              <IconMenu2 className="size-4" />
+            </Button>
+            <span className="truncate text-sm font-bold text-foreground">⚡ {APP_TITLE}</span>
+          </div>
         </div>
       ) : ownsToolbar ? (
         <div className="flex h-12 shrink-0 items-center border-b border-border px-4 md:hidden">
@@ -144,12 +126,8 @@ export function Layout({ children }: LayoutProps) {
         </div>
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
           <SheetContent side="left" className="p-0 w-[260px]">
-            <SheetTitle className="sr-only">
-              {t("navigation.navigation")}
-            </SheetTitle>
-            <SheetDescription className="sr-only">
-              {t("navigation.navigationDescription")}
-            </SheetDescription>
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <SheetDescription className="sr-only">App Navigation Menu</SheetDescription>
             <Sidebar collapsed={false} collapsible={false} />
           </SheetContent>
         </Sheet>
@@ -163,11 +141,11 @@ export function Layout({ children }: LayoutProps) {
             browserTabId={TAB_ID}
             openOnChatRunning={chatHomeHandoffActive}
             onFullscreenRequest={openAskAgentFullscreen}
-            emptyStateText={t("chat.inspectEmptyState")}
+            emptyStateText="Power Desk Assistant: Ask about fuel entries, variance, or solar payback."
             suggestions={[
-              t("chat.inspectSuggestionCapabilities"),
-              t("chat.inspectSuggestionHello"),
-              t("chat.inspectSuggestionAction"),
+              "Is anything off with our fuel this week?",
+              "When does solar pay back for our shop?",
+              "Log 25L at 1350 for Gen A",
             ]}
           >
             {contentFrame}
