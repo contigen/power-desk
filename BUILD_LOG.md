@@ -134,7 +134,31 @@
 5. **CLI Action Execution:**
    - Verified `pnpm action list-generators`, `pnpm action check-variance`, `pnpm action break-even` execute with expected structured JSON output.
 
+### Milestone 9: Post-Scaffold Deep Audit & Fixes
+1. **Resolved Database Table Collision on `settings`:**
+   - Problem: `@agent-native/core` internal settings store uses `public.settings (key TEXT PRIMARY KEY, value TEXT, updated_at BIGINT)`. The application's domain table was also named `"settings"`, which triggered `column "value" does not exist` and HTTP 500 errors across all HTTP action calls.
+   - Solution: Renamed the application table to `"app_settings"` in `server/db/schema.ts`, `server/db/init.ts`, `server/plugins/01-db.ts`, and `agent-native.json`. Preserved the TypeScript export `export const settings = table("app_settings", ...)`, maintaining 100% backwards-compatibility across all action queries and mutations.
+
+2. **Fixed HTTP Method Mismatch on Query Actions:**
+   - Problem: UI hooks (`useActionQuery("check-variance")` and `useActionQuery("break-even")`) issue HTTP `GET` requests, but the actions were configured with `http: { method: "POST" }`, resulting in HTTP 405 Method Not Allowed.
+   - Solution: Configured `http: { method: "GET" }` in `actions/check-variance.ts` and `actions/break-even.ts`.
+
+3. **Data Safety Enforcement in `undo-last-entry`:**
+   - Problem: `actions/undo-last-entry.ts` fell back to deleting sample seed entries if no real user entries were present.
+   - Solution: Guarded the action to strictly target user entries (`is_sample: false`). When no user entries exist, it cleanly returns `{ success: false, message: "No user-logged entries found to undo. Sample demonstration entries cannot be undone." }`.
+
+4. **Mathematically Calibrated Benchmark Seed Data:**
+   - Problem: Seed run hours had an expression `((dayOffset * 7) % 3.5)` that always evaluated to 0 (since 7 is a multiple of 3.5), keeping Week 3 (Oct 26-Nov 1) variance at +8.2% (< 15% tolerance). Calling `check-variance` would dynamically re-evaluate Week 3 and auto-dismiss the open flag. Gen B also ran without seeded fuel entries, triggering an unintended -100% variance flag.
+   - Solution: Calibrated realistic daily run hours and fuel purchases. Gen A Week 1 has +20.8% variance (`status: "explained"`), Week 2 has 0.0% variance, Week 3 has +29.9% variance with ₦19,044 impact (`status: "open"`, preserved), and Week 4 has +0.4% variance. Gen B runs are paired with corresponding 3L refuels, keeping Gen B within normal ±11.1% tolerance. Updated seed script to only delete sample flags (`flag-sample-%`).
+
+5. **End-to-End Verification:**
+   - All HTTP action endpoints tested over HTTP returning HTTP 200 OK.
+   - 17/17 Vitest tests passing.
+   - `pnpm typecheck` with 0 errors.
+   - `pnpm agent-native doctor`: Clean — no findings.
+   - `pnpm build`: Nitro production build generated cleanly.
+
 ---
 
 ## 4. Current State
-The project is complete, fully tested, and ready for deployment and submission.
+The project is complete, fully audited, mathematically verified, and ready for deployment and submission.
