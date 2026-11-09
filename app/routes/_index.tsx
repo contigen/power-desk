@@ -168,7 +168,7 @@ export default function DeskHomeRoute() {
               Sample Data Mode
             </Badge>
             <span>
-              Showing demonstration entries for <strong>Adewale Provisions Store (Lagos)</strong>. User entries are saved with <code>is_sample = false</code>.
+              Sample benchmarks for <strong>Adewale Provisions Store (Lagos)</strong>. User entries save with <code>is_sample = false</code>.
             </span>
           </div>
           <Link
@@ -197,7 +197,7 @@ export default function DeskHomeRoute() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Real-time fuel consumption, variance monitoring, and agent operations for Lagos SMEs.
+                7-day fuel burn, runtime hours, and open variance flags.
               </p>
             </div>
 
@@ -244,12 +244,12 @@ export default function DeskHomeRoute() {
                 </span>
                 <IconGasStation className="size-4 text-amber-500" />
               </div>
-              <div className="text-xl font-extrabold tracking-tight text-foreground">
+              <div className="text-xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
                 {ledgerData?.summary?.totalLitres
                   ? `${formatNumber(ledgerData.summary.totalLitres, 1)} L`
                   : "0 L"}
               </div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
+              <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
                 Avg {formatNaira(ledgerData?.summary?.averagePricePerLitre ?? 1350)}/L
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function DeskHomeRoute() {
                 </span>
                 <IconCash className="size-4 text-emerald-500" />
               </div>
-              <div className="text-xl font-extrabold tracking-tight text-foreground">
+              <div className="text-xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
                 {formatNaira(ledgerData?.summary?.totalSpendNaira ?? 0)}
               </div>
               <div className="text-[10px] text-muted-foreground mt-0.5">
@@ -278,7 +278,7 @@ export default function DeskHomeRoute() {
                 </span>
                 <IconClock className="size-4 text-sky-500" />
               </div>
-              <div className="text-xl font-extrabold tracking-tight text-foreground">
+              <div className="text-xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
                 {ledgerData?.summary?.totalRunHours
                   ? `${formatNumber(ledgerData.summary.totalRunHours, 1)} hrs`
                   : "0 hrs"}
@@ -296,7 +296,7 @@ export default function DeskHomeRoute() {
                 </span>
                 <IconFlame className="size-4 text-rose-500" />
               </div>
-              <div className="text-xl font-extrabold tracking-tight text-foreground">
+              <div className="text-xl font-extrabold tracking-tight text-foreground font-mono tabular-nums">
                 {formatNaira(ledgerData?.summary?.costPerRunHour ?? 0)}
                 <span className="text-xs font-normal text-muted-foreground">/hr</span>
               </div>
@@ -388,16 +388,16 @@ export default function DeskHomeRoute() {
           composerLayoutVariant="hero"
           composerPlaceholder="Text agent: 'bought 25L at 1280, ran 5h' or ask a question..."
           composerSlot={
-            <div className="mx-auto mb-4 max-w-xl px-4 text-center">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
-                <IconDeviceMobile className="size-3.5" />
-                <span>Text via Telegram or Web Chat</span>
+            <div className="mx-auto mb-3 max-w-md px-4 text-center">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted border border-border text-[11px] font-medium text-muted-foreground mb-1">
+                <IconDeviceMobile className="size-3 text-amber-600" />
+                <span>Telegram & Web Interface</span>
               </div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                Operate Your Fuel Ledger
+              <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
+                Fuel Ledger Assistant
               </h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Type naturally in Naira and Litres. The agent logs fuel and run-time, checks for variance, and computes solar break-even automatically.
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Log purchases, record run hours, check variance, or calculate solar break-even.
               </p>
             </div>
           }

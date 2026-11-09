@@ -49,8 +49,8 @@ export default defineAction({
   <!-- Header -->
   <div class="flex items-center justify-between border-b border-border pb-3">
     <div>
-      <h3 class="text-base font-bold text-foreground flex items-center gap-2">
-        ☀️ Solar vs Generator Break-Even Simulator
+      <h3 class="text-base font-bold text-foreground">
+        Solar vs Generator Break-Even Simulator
       </h3>
       <p class="text-xs text-muted-foreground mt-0.5">
         Benchmarked on ${genName} (${initLph} L/h typical). Adjust sliders to view instant payback.

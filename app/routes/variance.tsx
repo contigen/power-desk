@@ -134,13 +134,13 @@ export default function VarianceRoute() {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Compares litres bought against litres expected from engine run-hours.
+            Audits litres bought against expected engine consumption from logged run hours.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs py-1 px-2.5 bg-muted">
-            Configured Tolerance: ±{tolerancePct}%
+            Tolerance: ±{tolerancePct}%
           </Badge>
           <Button variant="outline" size="sm" asChild className="text-xs">
             <Link to="/settings">Adjust Tolerance</Link>
@@ -151,29 +151,32 @@ export default function VarianceRoute() {
       {/* Neutral Language & Education Banner */}
       <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
         <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
             <IconInfoCircle className="size-5" />
           </div>
           <div className="text-xs leading-relaxed">
             <h2 className="font-semibold text-foreground text-sm">
-              Understanding Unexplained Variance
+              Unexplained Variance Protocol
             </h2>
             <p className="text-muted-foreground mt-0.5">
-              A variance flag is a neutral operational prompt to check records, not an accusation.
-              Common legitimate causes include:
+              Variance flags prompt operational verification, not accusations. Four standard checks:
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-2">
               <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">1. Stored Jerrycans:</strong>
-                Fuel purchased this week may be sitting in 25L or 50L plastic jerrycans for future outages.
+                <strong className="text-foreground block">1. Jerrycan reserve:</strong>
+                Fuel stored in plastic jerrycans rather than poured into generator tanks.
               </div>
               <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">2. High Thermal Load:</strong>
-                Running multiple air conditioners or freezers during hot afternoon periods consumes up to 25% more fuel.
+                <strong className="text-foreground block">2. Tank carry-over:</strong>
+                Fuel purchased late in the week remaining in tank for next week.
               </div>
               <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">3. Tank Carry-Over:</strong>
-                Fuel bought late Sunday evening that will be burned during Monday morning operations.
+                <strong className="text-foreground block">3. Heavy cooling load:</strong>
+                Chillers, deep freezers, or welding equipment running above typical load.
+              </div>
+              <div className="rounded bg-muted/50 p-2 text-[11px]">
+                <strong className="text-foreground block">4. Unlogged hours:</strong>
+                Generator operated during off-grid hours without an entry in the ledger.
               </div>
             </div>
           </div>
@@ -186,11 +189,11 @@ export default function VarianceRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Open Flags
           </div>
-          <div className="text-xl font-bold text-foreground mt-1">
+          <div className="text-xl font-bold text-foreground font-mono tabular-nums mt-1">
             {openFlags.length}
           </div>
           <div className="text-[10px] text-muted-foreground">
-            Needs investigation
+            Needs explanation
           </div>
         </Card>
 
@@ -198,11 +201,11 @@ export default function VarianceRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Litres at Variance
           </div>
-          <div className="text-xl font-bold text-foreground mt-1">
+          <div className="text-xl font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNumber(totalOpenLitres, 1)} L
           </div>
           <div className="text-[10px] text-muted-foreground">
-            Bought beyond expected burn
+            Beyond expected burn
           </div>
         </Card>
 
@@ -210,7 +213,7 @@ export default function VarianceRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Est. Naira Impact
           </div>
-          <div className="text-xl font-bold text-amber-700 dark:text-amber-400 mt-1">
+          <div className="text-xl font-bold text-amber-700 dark:text-amber-400 font-mono tabular-nums mt-1">
             {formatNaira(totalOpenNaira)}
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -222,11 +225,11 @@ export default function VarianceRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Explained Weeks
           </div>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums mt-1">
             {explainedFlags.length}
           </div>
           <div className="text-[10px] text-muted-foreground">
-            Documented reserve / reasons
+            Documented reasons
           </div>
         </Card>
       </div>

@@ -64,7 +64,7 @@ export default function AboutRoute() {
         </CardHeader>
         <CardContent className="space-y-3 text-xs leading-relaxed text-amber-950 dark:text-amber-100">
           <p>
-            <strong>1. Synthetic Sample Data:</strong> The pre-loaded business (<em>"Sample: Adewale Provisions Store, Lagos"</em>), its two generators, fuel receipts, and run hours are clearly badged with <code>is_sample = true</code> and a prominent 🧪 Sample tag in the UI. They represent a realistic demonstration scenario based on actual market prices in Lagos.
+            <strong>1. Synthetic Sample Data:</strong> The pre-loaded business (<em>"Sample: Adewale Provisions Store, Lagos"</em>), its two generators, fuel receipts, and run hours are clearly badged with <code>is_sample = true</code> and a visible Sample badge in the UI. They represent a realistic demonstration scenario based on actual market prices in Lagos.
           </p>
           <p>
             <strong>2. Real User Data Segregation:</strong> Any entries submitted through the Web interface or the Telegram bot are permanently stored with <code>is_sample = false</code> and <code>source = 'web' | 'telegram'</code>. The sample data can be toggled on/off or re-seeded in Settings at any time without touching user records.

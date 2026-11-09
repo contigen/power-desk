@@ -171,7 +171,7 @@ export default function BreakEvenRoute() {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Model generator operating costs against solar capital investments for Nigerian small businesses.
+            Payback timeline and 5-year savings compared to generator fuel and servicing.
           </p>
         </div>
 
@@ -191,7 +191,7 @@ export default function BreakEvenRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Monthly Generator Burn
           </div>
-          <div className="text-xl font-extrabold text-foreground mt-1">
+          <div className="text-xl font-extrabold text-foreground font-mono tabular-nums mt-1">
             {formatNaira(calculations.monthlyGenCost)}
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -203,7 +203,7 @@ export default function BreakEvenRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Payback Timeline
           </div>
-          <div className="text-xl font-extrabold text-amber-700 dark:text-amber-400 mt-1">
+          <div className="text-xl font-extrabold text-amber-700 dark:text-amber-400 font-mono tabular-nums mt-1">
             {formatNumber(calculations.paybackMonths, 1)} Months
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -215,7 +215,7 @@ export default function BreakEvenRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Net Monthly Savings
           </div>
-          <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums mt-1">
             {formatNaira(calculations.netMonthlySavings)}
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -227,7 +227,7 @@ export default function BreakEvenRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             5-Year Net Benefit
           </div>
-          <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums mt-1">
             {formatNaira(calculations.fiveYearSavings)}
           </div>
           <div className="text-[10px] text-muted-foreground">

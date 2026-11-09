@@ -217,7 +217,7 @@ export default function LedgerRoute() {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Single chronological record of all generator fuel purchases and operating hours.
+            Chronological fuel purchases and operating sessions.
           </p>
         </div>
 
@@ -267,7 +267,7 @@ export default function LedgerRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Total Fuel
           </div>
-          <div className="text-lg font-bold text-foreground mt-1">
+          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNumber(ledgerData?.summary?.totalLitres ?? 0, 1)} L
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -279,7 +279,7 @@ export default function LedgerRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Total Spend
           </div>
-          <div className="text-lg font-bold text-foreground mt-1">
+          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNaira(ledgerData?.summary?.totalSpendNaira ?? 0)}
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -291,7 +291,7 @@ export default function LedgerRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Runtime
           </div>
-          <div className="text-lg font-bold text-foreground mt-1">
+          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNumber(ledgerData?.summary?.totalRunHours ?? 0, 1)} hrs
           </div>
           <div className="text-[10px] text-muted-foreground">
@@ -303,7 +303,7 @@ export default function LedgerRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Average Price
           </div>
-          <div className="text-lg font-bold text-foreground mt-1">
+          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNaira(ledgerData?.summary?.averagePricePerLitre ?? 0)}
             <span className="text-xs font-normal text-muted-foreground">/L</span>
           </div>
@@ -316,7 +316,7 @@ export default function LedgerRoute() {
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Cost / Hour
           </div>
-          <div className="text-lg font-bold text-foreground mt-1">
+          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
             {formatNaira(ledgerData?.summary?.costPerRunHour ?? 0)}
             <span className="text-xs font-normal text-muted-foreground">/hr</span>
           </div>

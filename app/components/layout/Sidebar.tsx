@@ -98,16 +98,16 @@ export function Sidebar({
             collapsed && "justify-center"
           )}
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-black text-base shadow-xs">
-            ⚡
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white font-black shadow-xs">
+            <IconBolt className="size-5" />
           </div>
           {!collapsed && (
             <div className="min-w-0">
               <span className="font-extrabold text-sm tracking-tight text-foreground block">
                 {APP_TITLE}
               </span>
-              <span className="text-[10px] text-amber-600 font-semibold uppercase tracking-wider block -mt-0.5">
-                Nigeria SME Ledger
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block -mt-0.5">
+                Fuel & Solar Ledger
               </span>
             </div>
           )}
@@ -168,8 +168,11 @@ export function Sidebar({
       {/* Footer / Collapse Toggle */}
       <div className="mt-auto shrink-0 border-t border-sidebar-border p-2">
         {!collapsed && (
-          <div className="px-2 py-2 mb-1 bg-amber-500/10 rounded-md border border-amber-500/20 text-[11px] leading-tight text-amber-700 dark:text-amber-400">
-            <span className="font-bold">🇳🇬 Lagos, Nigeria</span>
+          <div className="px-2.5 py-2 mb-1.5 rounded-md border border-border bg-muted/40 text-[11px] leading-tight text-foreground">
+            <div className="flex items-center gap-1.5 font-semibold">
+              <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>Lagos Operations</span>
+            </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">Operate via Telegram or Web</p>
           </div>
         )}
