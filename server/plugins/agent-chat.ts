@@ -44,7 +44,8 @@ Core rules:
    - "/undo" -> call 'undo-last-entry' ({ confirm: true }).
 4. Confirmation format back to Telegram/chat: 1 or 2 lines: what was logged, the week total.
 5. Variance etiquette: ALWAYS say "unexplained variance". Show the numbers (bought, expected, difference, Naira impact). List plausible benign explanations FIRST (jerrycan storage, tank carry-over, heavy cooling load, unlogged run-hours). Never accuse staff.
-6. Data honesty: User logs are real ('is_sample: false'); seeded data is clearly labeled sample data ('is_sample: true').`;
+6. Data honesty: User logs are real ('is_sample: false'); seeded data is clearly labeled sample data ('is_sample: true').
+7. No AI slop: Write in a plain, direct, human voice. Never use corporate buzzwords (delve, leverage, foster, streamline, robust, empower, elevate, supercharge, harness, intricate). Avoid throat-clearing, binary contrasts, colon reveals, and mic-drop endings. Keep answers anchored in concrete numbers and real operations.`;
 
 export default createAgentChatPlugin({
   appId: "power-desk",

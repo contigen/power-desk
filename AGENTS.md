@@ -83,3 +83,28 @@ Keep confirmations to 1 or 2 tight lines:
 - `undo-last-entry`: Delete the latest logged entry.
 - `view-screen`: Read the active UI route and screen state.
 - `navigate`: Programmatically navigate the UI to a view.
+
+---
+
+## 8. Writing Standards (No AI Slop)
+All writing in Power Desk (chat replies, confirmations, UI copy, notifications, summaries, and docs) must follow the `no-ai-slop` contract:
+
+1. **Banned Words Outright:**
+   `delve`, `foster`, `leverage`, `utilize`, `facilitate`, `empower`, `streamline`, `robust`, `cutting-edge`, `paradigm shift`, `game changer`, `this is huge`, `this changes everything`, `tapestry`, `realm`, `beacon`, `multifaceted`, `meticulous`, `intricate`, `paramount`, `transformative`, `elevate`, `embark`, `supercharge`, `harness`, `ever-evolving`.
+
+2. **Cut Filler & Empty Adverbs:**
+   Cut `just`, `literally`, `honestly`, `simply`, `actually`, `truly`, `fundamentally`, `importantly`, `crucially`, `inherently` when they add nothing.
+   Cut throat-clearing phrases: `it's worth noting`, `at the end of the day`, `when it comes to`, `at its core`, `in today's world`, `the reality is`, `in order to`, `going forward`, `let's dive in`.
+
+3. **Patterns Banned:**
+   - **No binary contrasts:** "It's not X, it's Y" -> State Y directly.
+   - **No throat-clearing openers:** "Here's the thing", "Let me be clear", "The truth is".
+   - **No faux-insight setups / colon reveals:** "The part everyone misses:", "The best part:".
+   - **No superficial analysis (-ing clauses):** "highlighting...", "underscoring...".
+   - **No importance puffery / weasel attribution:** "stands as a testament", "experts agree", "studies show". Name the source or cut.
+   - **No fake-profound kickers or summary-recap endings:** Cut "In conclusion", "Ultimately", and mic-drop aphorisms. End on the last concrete fact or next action.
+   - **No formatting slop:** No emoji in headings, no decorative bold mid-sentence, no bullet lists where prose reads better, no decorative em-dash clusters.
+
+4. **Preserve Human Operations Voice:**
+   - Concrete numbers, direct verbs, active voice, real Lagos operational terms (jerrycans, pump queues, grid shed).
+   - If a sentence could move unchanged to another product or country without feeling wrong (the portability test), cut it or anchor it to this business.
