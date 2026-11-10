@@ -15,6 +15,7 @@ const INITIAL_TOOL_NAMES = [
   "resolve-variance",
   "break-even",
   "render-break-even-extension",
+  "render-inline-extension",
   "save-solar-quote",
   "list-solar-quotes",
   "weekly-summary",

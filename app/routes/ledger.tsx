@@ -1,787 +1,447 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import {
-  useActionQuery,
-  useActionMutation,
-  callAction,
-} from "@agent-native/core/client/hooks";
-import { APP_TITLE } from "@/lib/app-config";
+import { useActionQuery, useActionMutation } from "@agent-native/core/client/hooks";
 import { formatNaira, formatNumber } from "@/lib/utils";
-import { useSetPageTitle } from "@/components/layout/HeaderActions";
 import {
-  IconReceipt2,
   IconGasStation,
   IconClock,
   IconDownload,
   IconArrowBackUp,
-  IconPlus,
-  IconFilter,
-  IconDeviceMobile,
-  IconWorld,
-  IconFlask,
-  IconAlertCircle,
   IconSearch,
+  IconX,
 } from "@tabler/icons-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+type GeneratorItem = {
+  id: string;
+  name: string;
+  kva: number;
+};
+
+type LedgerEntry = {
+  id: string;
+  type: "fuel" | "run";
+  generatorId: string;
+  generatorName: string;
+  date: string;
+  litres?: number;
+  pricePerLitre?: number;
+  totalCostNaira?: number;
+  supplier?: string | null;
+  hours?: number;
+  loadBand?: string;
+  expectedLitres?: number;
+  note?: string | null;
+  source: string;
+  isSample: boolean;
+  createdAt: string;
+};
+
+type LedgerSummary = {
+  totalLitres?: number;
+  totalSpendNaira?: number;
+  totalFuelSpend?: number;
+  totalRunHours?: number;
+  averagePricePerLitre?: number;
+  costPerRunHour?: number;
+  fuelCount?: number;
+  runCount?: number;
+};
 
 export function meta() {
   return [
-    { title: `Ledger - ${APP_TITLE}` },
+    { title: "Ledger - Power Desk" },
     {
       name: "description",
-      content:
-        "Chronological ledger of fuel purchases and generator run-time records with cost per hour analysis.",
+      content: "Chronological operational ledger of fuel purchases and generator run-time records.",
     },
   ];
 }
 
 export default function LedgerRoute() {
-  useSetPageTitle("Ledger");
-
-  // Filter state
   const [range, setRange] = useState<"7d" | "30d" | "all">("30d");
   const [selectedGenId, setSelectedGenId] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedEntry, setSelectedEntry] = useState<LedgerEntry | null>(null);
+  const [undoDialogOpen, setUndoDialogOpen] = useState<boolean>(false);
 
-  // Ledger query
-  const {
-    data: ledgerData,
-    isLoading,
-    refetch,
-  } = useActionQuery("get-ledger", {
-    range,
-    generatorId: selectedGenId !== "all" ? selectedGenId : undefined,
-  });
-
-  // Generators list
-  const { data: genData } = useActionQuery("list-generators", {});
-  const generators = genData?.generators || [];
-
-  // Modals state
-  const [isFuelModalOpen, setIsFuelModalOpen] = useState(false);
-  const [isHoursModalOpen, setIsHoursModalOpen] = useState(false);
-  const [isUndoModalOpen, setIsUndoModalOpen] = useState(false);
-
-  // Fuel modal form
-  const [fuelGenId, setFuelGenId] = useState("");
-  const [fuelLitres, setFuelLitres] = useState("30");
-  const [fuelPrice, setFuelPrice] = useState("1280");
-  const [fuelSupplier, setFuelSupplier] = useState("TotalEnergies Surulere");
-  const [fuelNote, setFuelNote] = useState("");
-  const { mutate: logFuel, isPending: isLoggingFuel } =
-    useActionMutation("log-fuel");
-
-  // Run hours modal form
-  const [hoursGenId, setHoursGenId] = useState("");
-  const [runHours, setRunHours] = useState("6");
-  const [loadBand, setLoadBand] = useState<"light" | "typical" | "heavy">(
-    "typical"
+  const { data: ledgerData, refetch } = useActionQuery(
+    "get-ledger",
+    {
+      range,
+      generatorId: selectedGenId !== "all" ? selectedGenId : undefined,
+    },
+    { staleTime: 0, refetchInterval: 2000, refetchIntervalInBackground: true }
   );
-  const [hoursNote, setHoursNote] = useState("");
-  const { mutate: logRun, isPending: isLoggingRun } =
-    useActionMutation("log-run");
 
-  // Undo mutation
-  const { mutate: undoLast, isPending: isUndoing } =
-    useActionMutation("undo-last-entry");
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refetch();
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [refetch]);
 
-  // Handle Export CSV
-  const handleExportCsv = async () => {
-    try {
-      const result: any = await callAction(
-        "export-ledger",
-        {
-          generatorId: selectedGenId !== "all" ? selectedGenId : undefined,
-        },
-        { method: "GET" }
-      );
+  const { data: genData } = useActionQuery("list-generators", {}, { refetchInterval: 10000 });
+  const generators: readonly GeneratorItem[] = (genData?.generators ?? []) as unknown as readonly GeneratorItem[];
 
-      if (result?.csv) {
-        const blob = new Blob([result.csv], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute(
-          "download",
-          result.filename || `power-desk-ledger-${new Date().toISOString().slice(0, 10)}.csv`
-        );
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (err) {
-      console.error("Export CSV error:", err);
-    }
-  };
+  const { mutate: undoLast, isPending: isUndoing } = useActionMutation("undo-last-entry");
 
-  const handleLogFuelSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    logFuel(
-      {
-        generator: fuelGenId || (generators[0]?.id ?? undefined),
-        litres: parseFloat(fuelLitres) || 0,
-        pricePerLitre: parseFloat(fuelPrice) || 0,
-        supplier: fuelSupplier || undefined,
-        note: fuelNote || undefined,
-        source: "web",
-      },
-      {
-        onSuccess: () => {
-          setIsFuelModalOpen(false);
-          setFuelNote("");
-          refetch();
-        },
-      }
-    );
-  };
+  const summary = (ledgerData?.summary ?? {}) as LedgerSummary;
+  const rawEntries = (ledgerData?.entries ?? []) as unknown as readonly LedgerEntry[];
 
-  const handleLogRunSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    logRun(
-      {
-        generator: hoursGenId || (generators[0]?.id ?? undefined),
-        hours: parseFloat(runHours) || 0,
-        loadBand,
-        note: hoursNote || undefined,
-        source: "web",
-      },
-      {
-        onSuccess: () => {
-          setIsHoursModalOpen(false);
-          setHoursNote("");
-          refetch();
-        },
-      }
-    );
-  };
-
-  const handleUndoConfirm = () => {
-    undoLast(
-      {},
-      {
-        onSuccess: () => {
-          setIsUndoModalOpen(false);
-          refetch();
-        },
-      }
-    );
-  };
-
-  const entries = (ledgerData?.entries || []).filter((item: any) => {
+  const filteredEntries = rawEntries.filter((entry) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      item.generatorName?.toLowerCase().includes(query) ||
-      item.note?.toLowerCase().includes(query) ||
-      item.supplier?.toLowerCase().includes(query) ||
-      item.type?.toLowerCase().includes(query) ||
-      item.date?.includes(query)
-    );
+    const q = searchQuery.toLowerCase();
+    const genMatch = (entry.generatorName ?? "").toLowerCase().includes(q);
+    const supplierMatch = (entry.supplier ?? "").toLowerCase().includes(q);
+    const notesMatch = (entry.note ?? "").toLowerCase().includes(q);
+    return genMatch || supplierMatch || notesMatch;
   });
+
+  function handleExportCsv() {
+    const rows = [
+      ["Type", "Date", "Generator", "Litres / Hours", "Rate (NGN)", "Total (NGN)", "Supplier / Band", "Source", "Sample Data"],
+      ...filteredEntries.map((e) => [
+        e.type,
+        e.date,
+        e.generatorName ?? "",
+        e.type === "fuel" ? String(e.litres ?? "") : String(e.hours ?? ""),
+        e.type === "fuel" ? String(e.pricePerLitre ?? "") : "",
+        e.type === "fuel" ? String(e.totalCostNaira ?? "") : "",
+        e.type === "fuel" ? (e.supplier ?? "") : (e.loadBand ?? ""),
+        e.source ?? "web",
+        e.isSample ? "true" : "false",
+      ]),
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const encoded = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encoded);
+    link.setAttribute("download", `power-desk-ledger-${range}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function handleConfirmUndo() {
+    undoLast(
+      { confirm: true },
+      {
+        onSuccess: () => {
+          setUndoDialogOpen(false);
+          refetch();
+        },
+      }
+    );
+  }
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Header & Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-6 font-mono text-neutral-100">
+      <div className="flex flex-col justify-between gap-4 border-b border-neutral-900 pb-4 sm:flex-row sm:items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Fuel & Runtime Ledger
-            </h1>
-            <Badge
-              variant="outline"
-              className="text-xs bg-muted font-medium text-muted-foreground"
-            >
-              {entries.length} Records
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Chronological fuel purchases and operating sessions.
+          <h1 className="text-xl font-bold tracking-tight text-white">fuel & runtime ledger</h1>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            chronological purchases and run sessions · {filteredEntries.length} records
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs gap-1.5 shadow-xs"
-            onClick={() => setIsFuelModalOpen(true)}
-          >
-            <IconPlus className="size-3.5" />
-            Log Fuel
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs font-medium gap-1.5"
-            onClick={() => setIsHoursModalOpen(true)}
-          >
-            <IconClock className="size-3.5 text-sky-600" />
-            Log Hours
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs font-medium gap-1.5"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
             onClick={handleExportCsv}
+            className="flex items-center gap-1.5 border border-neutral-800 bg-neutral-950 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 hover:text-white"
           >
             <IconDownload className="size-3.5" />
-            Export CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-xs font-medium gap-1 text-muted-foreground hover:text-foreground"
-            onClick={() => setIsUndoModalOpen(true)}
+            <span>export csv</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUndoDialogOpen(true)}
+            className="flex items-center gap-1.5 border border-neutral-800 bg-neutral-950 px-3 py-1.5 text-xs text-neutral-400 hover:border-neutral-600 hover:text-neutral-200"
           >
             <IconArrowBackUp className="size-3.5" />
-            Undo Last
-          </Button>
+            <span>undo last</span>
+          </button>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Total Fuel
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">total fuel</span>
+          <div className="mt-2 text-xl font-bold text-neutral-100 sm:text-2xl">
+            {formatNumber(summary.totalLitres ?? 0, 1)} L
           </div>
-          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNumber(ledgerData?.summary?.totalLitres ?? 0, 1)} L
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {ledgerData?.summary?.fuelCount ?? 0} fill-ups
-          </div>
-        </Card>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            {summary.fuelCount ?? 0} purchases
+          </span>
+        </div>
 
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Total Spend
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">total spend</span>
+          <div className="mt-2 text-xl font-bold text-sky-400 sm:text-2xl">
+            {formatNaira(summary.totalSpendNaira ?? summary.totalFuelSpend ?? 0)}
           </div>
-          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNaira(ledgerData?.summary?.totalSpendNaira ?? 0)}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            All fuel purchases
-          </div>
-        </Card>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            avg {formatNaira(summary.averagePricePerLitre ?? 1320)}/L
+          </span>
+        </div>
 
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Runtime
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">generator runtime</span>
+          <div className="mt-2 text-xl font-bold text-neutral-100 sm:text-2xl">
+            {formatNumber(summary.totalRunHours ?? 0, 1)} hrs
           </div>
-          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNumber(ledgerData?.summary?.totalRunHours ?? 0, 1)} hrs
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {ledgerData?.summary?.runCount ?? 0} sessions
-          </div>
-        </Card>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            {summary.runCount ?? 0} recorded sessions
+          </span>
+        </div>
 
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Average Price
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">cost per run-hour</span>
+          <div className="mt-2 text-xl font-bold text-neutral-100 sm:text-2xl">
+            {formatNaira(summary.costPerRunHour ?? 3246)}/h
           </div>
-          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNaira(ledgerData?.summary?.averagePricePerLitre ?? 0)}
-            <span className="text-xs font-normal text-muted-foreground">/L</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            Weighted avg
-          </div>
-        </Card>
-
-        <Card className="p-3 col-span-2 md:col-span-1">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Cost / Hour
-          </div>
-          <div className="text-lg font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNaira(ledgerData?.summary?.costPerRunHour ?? 0)}
-            <span className="text-xs font-normal text-muted-foreground">/hr</span>
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            Fuel + wear
-          </div>
-        </Card>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            fuel burn + hourly servicing
+          </span>
+        </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-muted/40 p-3 rounded-lg border border-border">
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          {/* Time Range Selector */}
-          <div className="flex items-center gap-1 bg-background border border-border rounded-md p-0.5">
+      <div className="flex flex-col justify-between gap-3 border border-neutral-900 bg-neutral-950 p-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          {(["7d", "30d", "all"] as const).map((r) => (
             <button
+              key={r}
               type="button"
-              onClick={() => setRange("7d")}
-              className={`px-2.5 py-1 text-xs font-medium rounded ${
-                range === "7d"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
+              onClick={() => setRange(r)}
+              className={`px-3 py-1 text-xs uppercase tracking-wider transition-colors ${
+                range === r
+                  ? "border border-neutral-700 bg-neutral-900 font-semibold text-white"
+                  : "text-neutral-500 hover:text-neutral-300"
               }`}
             >
-              7 Days
+              {r}
             </button>
-            <button
-              type="button"
-              onClick={() => setRange("30d")}
-              className={`px-2.5 py-1 text-xs font-medium rounded ${
-                range === "30d"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              30 Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setRange("all")}
-              className={`px-2.5 py-1 text-xs font-medium rounded ${
-                range === "all"
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              All Time
-            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-1 items-center gap-3 sm:max-w-md sm:justify-end">
+          <select
+            value={selectedGenId}
+            onChange={(e) => setSelectedGenId(e.target.value)}
+            className="border border-neutral-800 bg-black px-2.5 py-1 text-xs text-neutral-300 outline-none"
+          >
+            <option value="all">all generators</option>
+            {generators.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+
+          <div className="relative flex-1">
+            <IconSearch className="absolute left-2.5 top-2 size-3.5 text-neutral-500" />
+            <input
+              type="text"
+              placeholder="search supplier, notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border border-neutral-800 bg-black py-1 pl-8 pr-3 text-xs text-neutral-200 outline-none placeholder:text-neutral-600 focus:border-neutral-600"
+            />
           </div>
-
-          {/* Generator Selector */}
-          <Select value={selectedGenId} onValueChange={setSelectedGenId}>
-            <SelectTrigger className="w-[180px] h-8 text-xs bg-background">
-              <SelectValue placeholder="All Generators" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all" className="text-xs">
-                All Generators
-              </SelectItem>
-              {generators.map((g: any) => (
-                <SelectItem key={g.id} value={g.id} className="text-xs">
-                  {g.name} ({g.kva} kVA)
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Search input */}
-        <div className="relative w-full sm:w-64">
-          <IconSearch className="absolute left-2.5 top-2 size-4 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search notes, supplier, gen..."
-            className="h-8 pl-8 text-xs bg-background"
-          />
         </div>
       </div>
 
-      {/* Ledger Table */}
-      <div className="rounded-lg border border-border bg-card overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/70 text-muted-foreground border-b border-border text-[11px] font-semibold uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3">Date</th>
-                <th className="py-2.5 px-3">Type</th>
-                <th className="py-2.5 px-3">Generator</th>
-                <th className="py-2.5 px-3">Quantity / Rate</th>
-                <th className="py-2.5 px-3 text-right">Amount (₦)</th>
-                <th className="py-2.5 px-3">Source</th>
-                <th className="py-2.5 px-3">Supplier & Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                    Loading ledger records...
-                  </td>
-                </tr>
-              ) : entries.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                    No entries match current filters.
-                  </td>
-                </tr>
-              ) : (
-                entries.map((item: any) => {
-                  const isFuel = item.type === "fuel";
-                  return (
-                    <tr
-                      key={`${item.type}-${item.id}`}
-                      className="hover:bg-muted/40 transition-colors"
-                    >
-                      {/* Date */}
-                      <td className="py-2.5 px-3 font-mono font-medium text-foreground whitespace-nowrap">
-                        {item.date}
-                      </td>
-
-                      {/* Type Badge */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        {isFuel ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                            <IconGasStation className="size-3" />
-                            Fuel Purchase
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20">
-                            <IconClock className="size-3" />
-                            Run Time
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Generator */}
-                      <td className="py-2.5 px-3 font-medium text-foreground whitespace-nowrap">
-                        {item.generatorName}
-                      </td>
-
-                      {/* Quantity & Details */}
-                      <td className="py-2.5 px-3">
-                        {isFuel ? (
-                          <span>
-                            <strong>{formatNumber(item.litres, 1)} L</strong> @ {formatNaira(item.pricePerLitre)}/L
-                          </span>
-                        ) : (
-                          <span>
-                            <strong>{formatNumber(item.hours, 1)} hrs</strong> ({item.loadBand} load)
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Cost */}
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-foreground whitespace-nowrap">
-                        {isFuel ? (
-                          formatNaira(item.totalCostNaira)
-                        ) : (
-                          <span className="text-muted-foreground font-normal">
-                            —
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Source Badge */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        {item.source === "telegram" ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/20 gap-1 font-medium"
-                          >
-                            <IconDeviceMobile className="size-3" />
-                            Telegram
-                          </Badge>
-                        ) : item.isSample ? (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20 gap-1 font-medium"
-                          >
-                            <IconFlask className="size-3" />
-                            Sample
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-[10px] bg-muted text-muted-foreground gap-1 font-medium"
-                          >
-                            <IconWorld className="size-3" />
-                            Web
-                          </Badge>
-                        )}
-                      </td>
-
-                      {/* Supplier & Notes */}
-                      <td className="py-2.5 px-3 text-muted-foreground max-w-xs truncate">
-                        {item.supplier && (
-                          <span className="font-medium text-foreground mr-1">
-                            [{item.supplier}]
-                          </span>
-                        )}
-                        {item.note || "—"}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      <div className="border border-neutral-900 bg-neutral-950">
+        <div className="border-b border-neutral-900 px-4 py-3">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">entries</span>
         </div>
-      </div>
 
-      {/* Fuel Purchase Modal */}
-      <Dialog open={isFuelModalOpen} onOpenChange={setIsFuelModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleLogFuelSubmit}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <IconGasStation className="size-5 text-amber-600" />
-                Record Fuel Purchase
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Log fuel bought for a generator or stored in jerrycans.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Generator</Label>
-                <Select
-                  value={fuelGenId || generators[0]?.id}
-                  onValueChange={setFuelGenId}
+        {filteredEntries.length === 0 ? (
+          <div className="p-8 text-center text-xs text-neutral-500">
+            no ledger entries match the selected filters.
+          </div>
+        ) : (
+          <div className="flex flex-col divide-y divide-neutral-900 text-xs">
+            {filteredEntries.map((entry) => {
+              const isFuel = entry.type === "fuel";
+              return (
+                <div
+                  key={entry.id}
+                  onClick={() => setSelectedEntry(entry)}
+                  className="flex cursor-pointer flex-col justify-between gap-2 p-4 transition-colors hover:bg-neutral-900/40 sm:flex-row sm:items-center"
                 >
-                  <SelectTrigger className="w-full text-xs">
-                    <SelectValue placeholder="Select generator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generators.map((g: any) => (
-                      <SelectItem key={g.id} value={g.id} className="text-xs">
-                        {g.name} ({g.kva} kVA {g.fuelType})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {isFuel ? (
+                        <IconGasStation className="size-4 text-sky-400" />
+                      ) : (
+                        <IconClock className="size-4 text-neutral-400" />
+                      )}
+                    </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Litres Bought (L)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="500"
-                    value={fuelLitres}
-                    onChange={(e) => setFuelLitres(e.target.value)}
-                    required
-                    className="text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Price per Litre (₦)</Label>
-                  <Input
-                    type="number"
-                    step="1"
-                    min="100"
-                    max="10000"
-                    value={fuelPrice}
-                    onChange={(e) => setFuelPrice(e.target.value)}
-                    required
-                    className="text-xs"
-                  />
-                </div>
-              </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-neutral-200">
+                          {isFuel ? `${entry.litres}L fuel purchase` : `${entry.hours}h runtime session`}
+                        </span>
+                        <span className="text-neutral-500">·</span>
+                        <span className="text-neutral-400">{entry.generatorName ?? "Gen A"}</span>
+                        {entry.isSample && (
+                          <span className="border border-amber-900/60 bg-amber-950/20 px-1 py-0.2 text-[10px] text-amber-400">
+                            sample
+                          </span>
+                        )}
+                      </div>
 
-              <div className="rounded-md bg-muted/60 p-2.5 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground font-medium">Computed Total:</span>
-                <span className="text-sm font-bold text-foreground">
-                  {formatNaira(
-                    (parseFloat(fuelLitres) || 0) * (parseFloat(fuelPrice) || 0)
-                  )}
+                      <div className="mt-0.5 text-[11px] text-neutral-500">
+                        {isFuel ? (
+                          <>
+                            @{formatNaira(entry.pricePerLitre ?? 1280)}/L · {entry.supplier ?? "Station pump"} · {entry.source ?? "web"}
+                          </>
+                        ) : (
+                          <>
+                            {entry.loadBand ?? "typical"} load · ~{entry.expectedLitres ?? (entry.hours ? entry.hours * 1.6 : 0).toFixed(1)}L expected burn · {entry.source ?? "web"}
+                          </>
+                        )}
+                        {entry.note && <span className="ml-2 text-neutral-400">"{entry.note}"</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-left sm:text-right">
+                    <div className="font-semibold text-neutral-100">
+                      {isFuel ? formatNaira(entry.totalCostNaira ?? (entry.litres ?? 0) * (entry.pricePerLitre ?? 0)) : `${entry.hours}h logged`}
+                    </div>
+                    <div className="text-[11px] text-neutral-500">
+                      {entry.date}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {selectedEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md border border-neutral-800 bg-black p-5 text-xs text-neutral-100">
+            <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+              <span className="text-xs uppercase tracking-wider text-neutral-400">
+                {selectedEntry.type === "fuel" ? "fuel purchase record" : "generator runtime record"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedEntry(null)}
+                className="text-neutral-500 hover:text-white"
+              >
+                <IconX className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2.5">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">generator</span>
+                <span className="text-neutral-200">{selectedEntry.generatorName ?? "Gen A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">date</span>
+                <span className="text-neutral-200">{selectedEntry.date}</span>
+              </div>
+              {selectedEntry.type === "fuel" ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">litres bought</span>
+                    <span className="text-neutral-200">{selectedEntry.litres} L</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">price per litre</span>
+                    <span className="text-neutral-200">{formatNaira(selectedEntry.pricePerLitre ?? 0)}/L</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">total spend</span>
+                    <span className="font-semibold text-sky-400">
+                      {formatNaira(selectedEntry.totalCostNaira ?? (selectedEntry.litres ?? 0) * (selectedEntry.pricePerLitre ?? 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">supplier</span>
+                    <span className="text-neutral-200">{selectedEntry.supplier ?? "Direct purchase"}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">operating hours</span>
+                    <span className="text-neutral-200">{selectedEntry.hours} h</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">load band</span>
+                    <span className="text-neutral-200">{selectedEntry.loadBand ?? "typical"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">expected fuel burn</span>
+                    <span className="text-neutral-200">{selectedEntry.expectedLitres ?? "~"} L</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="text-neutral-500">channel</span>
+                <span className="text-neutral-200">{selectedEntry.source ?? "web"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">data classification</span>
+                <span className={selectedEntry.isSample ? "text-amber-400" : "text-emerald-400"}>
+                  {selectedEntry.isSample ? "sample benchmark (is_sample: true)" : "real user log (is_sample: false)"}
                 </span>
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Filling Station / Vendor</Label>
-                <Input
-                  value={fuelSupplier}
-                  onChange={(e) => setFuelSupplier(e.target.value)}
-                  className="text-xs"
-                  placeholder="e.g. TotalEnergies, NNPC"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Note</Label>
-                <Input
-                  value={fuelNote}
-                  onChange={(e) => setFuelNote(e.target.value)}
-                  className="text-xs"
-                  placeholder="e.g. 30L plastic keg for backup"
-                />
-              </div>
+              {selectedEntry.note && (
+                <div className="border-t border-neutral-900 pt-2 text-neutral-400">
+                  <span className="text-neutral-500">notes: </span>
+                  {selectedEntry.note}
+                </div>
+              )}
             </div>
 
-            <DialogFooter>
-              <Button
+            <button
+              type="button"
+              onClick={() => setSelectedEntry(null)}
+              className="mt-5 w-full border border-neutral-800 bg-neutral-950 py-2 uppercase tracking-wider text-neutral-300 hover:border-neutral-600 hover:text-white"
+            >
+              close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {undoDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm border border-neutral-800 bg-black p-5 text-xs text-neutral-100">
+            <span className="text-xs uppercase tracking-wider text-neutral-400">undo latest entry</span>
+            <p className="mt-3 text-neutral-300">
+              Permanently remove the latest logged fuel purchase or run-time session?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFuelModalOpen(false)}
+                onClick={() => setUndoDialogOpen(false)}
+                className="border border-neutral-800 bg-neutral-950 px-3 py-1.5 text-neutral-400 hover:text-white"
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isLoggingFuel}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
+                cancel
+              </button>
+              <button
+                type="button"
+                disabled={isUndoing}
+                onClick={handleConfirmUndo}
+                className="border border-red-900 bg-red-950/40 px-3 py-1.5 text-red-300 hover:border-red-700 hover:text-white disabled:opacity-50"
               >
-                {isLoggingFuel ? "Saving..." : "Save Entry"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Run Hours Modal */}
-      <Dialog open={isHoursModalOpen} onOpenChange={setIsHoursModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleLogRunSubmit}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <IconClock className="size-5 text-sky-600" />
-                Record Generator Runtime
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Log run hours to calculate fuel burn and servicing intervals.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Generator</Label>
-                <Select
-                  value={hoursGenId || generators[0]?.id}
-                  onValueChange={setHoursGenId}
-                >
-                  <SelectTrigger className="w-full text-xs">
-                    <SelectValue placeholder="Select generator" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generators.map((g: any) => (
-                      <SelectItem key={g.id} value={g.id} className="text-xs">
-                        {g.name} ({g.kva} kVA {g.fuelType})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Run Duration (hours)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="24"
-                    value={runHours}
-                    onChange={(e) => setRunHours(e.target.value)}
-                    required
-                    className="text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Load Level</Label>
-                  <Select
-                    value={loadBand}
-                    onValueChange={(val: any) => setLoadBand(val)}
-                  >
-                    <SelectTrigger className="w-full text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light" className="text-xs">
-                        Light (&lt; 50%)
-                      </SelectItem>
-                      <SelectItem value="typical" className="text-xs">
-                        Typical (75%)
-                      </SelectItem>
-                      <SelectItem value="heavy" className="text-xs">
-                        Heavy (100%)
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Note</Label>
-                <Input
-                  value={hoursNote}
-                  onChange={(e) => setHoursNote(e.target.value)}
-                  className="text-xs"
-                  placeholder="e.g. Outage during peak customer hours"
-                />
-              </div>
+                {isUndoing ? "undoing..." : "confirm undo"}
+              </button>
             </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsHoursModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isLoggingRun}
-                className="bg-sky-600 hover:bg-sky-700 text-white font-medium"
-              >
-                {isLoggingRun ? "Saving..." : "Save Runtime"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Undo Last Entry Confirmation Dialog */}
-      <Dialog open={isUndoModalOpen} onOpenChange={setIsUndoModalOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-rose-600">
-              <IconAlertCircle className="size-5" />
-              Undo Last Entry?
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              This will remove the most recent entry logged by the user or Telegram bot. Sample demo data will not be affected.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsUndoModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={isUndoing}
-              onClick={handleUndoConfirm}
-            >
-              {isUndoing ? "Undoing..." : "Yes, Undo"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </main>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

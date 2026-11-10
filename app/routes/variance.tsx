@@ -1,106 +1,97 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import {
-  useActionQuery,
-  useActionMutation,
-} from "@agent-native/core/client/hooks";
-import { APP_TITLE } from "@/lib/app-config";
+import { useActionQuery, useActionMutation } from "@agent-native/core/client/hooks";
 import { formatNaira, formatNumber } from "@/lib/utils";
-import { useSetPageTitle } from "@/components/layout/HeaderActions";
 import {
   IconAlertTriangle,
   IconCircleCheck,
-  IconInfoCircle,
-  IconTool,
-  IconClock,
-  IconGasStation,
-  IconChevronRight,
-  IconCheck,
   IconX,
-  IconEdit,
-  IconHelpCircle,
+  IconChevronRight,
 } from "@tabler/icons-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+type VarianceFlagItem = {
+  id: string;
+  generatorId: string;
+  generatorName: string;
+  weekStart: string;
+  litresBought: number;
+  litresExpected: number;
+  varianceLitres: number;
+  variancePct: number;
+  estimatedNairaImpact: number;
+  status: "open" | "explained" | "dismissed";
+  notes?: string;
+  explanationReason?: string;
+};
+
+type VarianceData = {
+  flags?: readonly VarianceFlagItem[];
+  openCount?: number;
+  resolvedCount?: number;
+  tolerancePct?: number;
+};
 
 export function meta() {
   return [
-    { title: `Variance Review - ${APP_TITLE}` },
+    { title: "Variance Review - Power Desk" },
     {
       name: "description",
-      content:
-        "Review and explain weekly generator fuel variance. Prompt to investigate unexpected consumption patterns neutrally.",
+      content: "Identify and investigate unexplained fuel variance with neutral benign explanation protocols.",
     },
   ];
 }
 
+const BENIGN_CAUSES = [
+  { id: "jerrycan", label: "Jerrycan reserve (fuel bought and stored for later)" },
+  { id: "tank_carryover", label: "Tank carry-over (fuel from prior week remained in tank)" },
+  { id: "heavy_load", label: "Heavy load (compressors, refrigeration, deep freezers running)" },
+  { id: "unlogged_runtime", label: "Missing run-hours (generator ran without log)" },
+] as const;
+
 export default function VarianceRoute() {
-  useSetPageTitle("Variance Review");
-
-  const { data: varianceData, isLoading, refetch } = useActionQuery(
+  const { data: varianceData, refetch } = useActionQuery(
     "check-variance",
-    {}
+    {},
+    { staleTime: 0, refetchInterval: 3000, refetchIntervalInBackground: true }
   );
-  const { data: settingsData } = useActionQuery("get-settings", {});
 
-  const { mutate: resolveFlag, isPending: isResolving } =
-    useActionMutation("resolve-variance");
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refetch();
+    }, 2500);
+    return () => clearInterval(timer);
+  }, [refetch]);
+  const { mutate: resolveFlag, isPending: isResolving } = useActionMutation("resolve-variance");
 
-  // Selected flag for explanation modal
-  const [selectedFlag, setSelectedFlag] = useState<any>(null);
+  const [selectedFlag, setSelectedFlag] = useState<VarianceFlagItem | null>(null);
   const [modalStatus, setModalStatus] = useState<"open" | "explained" | "dismissed">("explained");
-  const [explanationText, setExplanationText] = useState("");
+  const [selectedCause, setSelectedCause] = useState<string>(BENIGN_CAUSES[0].label);
+  const [explanationText, setExplanationText] = useState<string>("");
 
-  const tolerancePct = settingsData?.tolerancePct ?? 15;
-  const flags = varianceData?.flags || [];
+  const data = (varianceData ?? {}) as VarianceData;
+  const flags = (data.flags ?? []) as readonly VarianceFlagItem[];
+  const openCount = data.openCount ?? flags.filter((f) => f.status === "open").length;
+  const resolvedCount = data.resolvedCount ?? flags.filter((f) => f.status !== "open").length;
+  const totalImpact = flags
+    .filter((f) => f.status === "open")
+    .reduce((sum, f) => sum + (f.estimatedNairaImpact ?? 0), 0);
 
-  const openFlags = flags.filter((f: any) => f.status === "open");
-  const explainedFlags = flags.filter((f: any) => f.status === "explained");
-  const nominalWeeks = flags.filter((f: any) => f.status !== "open" && f.status !== "explained");
-
-  const totalOpenNaira = openFlags.reduce(
-    (sum: number, f: any) => sum + (f.estimatedNairaImpact || 0),
-    0
-  );
-
-  const totalOpenLitres = openFlags.reduce(
-    (sum: number, f: any) => sum + Math.max(0, f.varianceLitres || 0),
-    0
-  );
-
-  const openResolveModal = (flag: any) => {
+  function handleOpenModal(flag: VarianceFlagItem) {
     setSelectedFlag(flag);
     setModalStatus(flag.status === "open" ? "explained" : flag.status);
-    setExplanationText(flag.explanation || "");
-  };
+    setExplanationText(flag.notes ?? "");
+    setSelectedCause(flag.explanationReason ?? BENIGN_CAUSES[0].label);
+  }
 
-  const handleResolveSubmit = (e: React.FormEvent) => {
+  function handleResolveSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedFlag) return;
 
     resolveFlag(
       {
-        flagId: selectedFlag.flagId || selectedFlag.id,
+        flagId: selectedFlag.id,
         status: modalStatus,
-        explanation: explanationText || undefined,
+        explanation: `${selectedCause}${explanationText ? `: ${explanationText}` : ""}`,
       },
       {
         onSuccess: () => {
@@ -109,267 +100,139 @@ export default function VarianceRoute() {
         },
       }
     );
-  };
+  }
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-6 font-mono text-neutral-100">
+      <div className="flex flex-col justify-between gap-4 border-b border-neutral-900 pb-4 sm:flex-row sm:items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Fuel Variance Review
-            </h1>
-            <Badge
-              variant="outline"
-              className={
-                openFlags.length > 0
-                  ? "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 text-xs font-semibold"
-                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 text-xs font-semibold"
-              }
-            >
-              {openFlags.length > 0
-                ? `${openFlags.length} Flagged Weeks`
-                : "All Nominal"}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Audits litres bought against expected engine consumption from logged run hours.
+          <h1 className="text-xl font-bold tracking-tight text-white">unexplained variance review</h1>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            spotting discrepancies between litres bought and expected burn from logged run-hours
           </p>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs py-1 px-2.5 bg-muted">
-            Tolerance: ±{tolerancePct}%
-          </Badge>
-          <Button variant="outline" size="sm" asChild className="text-xs">
-            <Link to="/settings">Adjust Tolerance</Link>
-          </Button>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">open flags</span>
+          <div className={`mt-2 text-xl font-bold sm:text-2xl ${openCount > 0 ? "text-amber-400" : "text-neutral-100"}`}>
+            {openCount}
+          </div>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            requiring review
+          </span>
+        </div>
+
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">resolved flags</span>
+          <div className="mt-2 text-xl font-bold text-neutral-100 sm:text-2xl">
+            {resolvedCount}
+          </div>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            explained or dismissed
+          </span>
+        </div>
+
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">tolerance threshold</span>
+          <div className="mt-2 text-xl font-bold text-neutral-100 sm:text-2xl">
+            ±{data.tolerancePct ?? 10}%
+          </div>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            generator consumption band
+          </span>
+        </div>
+
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">potential naira impact</span>
+          <div className="mt-2 text-xl font-bold text-sky-400 sm:text-2xl">
+            {formatNaira(totalImpact)}
+          </div>
+          <span className="mt-1 block text-[11px] text-neutral-400">
+            across open variance flags
+          </span>
         </div>
       </div>
 
-      {/* Neutral Language & Education Banner */}
-      <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-        <div className="flex items-start gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-            <IconInfoCircle className="size-5" />
-          </div>
-          <div className="text-xs leading-relaxed">
-            <h2 className="font-semibold text-foreground text-sm">
-              Unexplained Variance Protocol
-            </h2>
-            <p className="text-muted-foreground mt-0.5">
-              Variance flags prompt operational verification, not accusations. Four standard checks:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-2">
-              <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">1. Jerrycan reserve:</strong>
-                Fuel stored in plastic jerrycans rather than poured into generator tanks.
-              </div>
-              <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">2. Tank carry-over:</strong>
-                Fuel purchased late in the week remaining in tank for next week.
-              </div>
-              <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">3. Heavy cooling load:</strong>
-                Chillers, deep freezers, or welding equipment running above typical load.
-              </div>
-              <div className="rounded bg-muted/50 p-2 text-[11px]">
-                <strong className="text-foreground block">4. Unlogged hours:</strong>
-                Generator operated during off-grid hours without an entry in the ledger.
-              </div>
+      <div className="border border-neutral-900 bg-neutral-950 p-4">
+        <span className="text-xs uppercase tracking-wider text-neutral-500">benign explanation protocol</span>
+        <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-neutral-300 sm:grid-cols-2">
+          {BENIGN_CAUSES.map((cause, idx) => (
+            <div key={cause.id} className="flex items-start gap-2 border border-neutral-900 bg-black/40 p-2.5">
+              <span className="font-bold text-neutral-500">{idx + 1}.</span>
+              <span>{cause.label}</span>
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* KPI Metric Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Open Flags
-          </div>
-          <div className="text-xl font-bold text-foreground font-mono tabular-nums mt-1">
-            {openFlags.length}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            Needs explanation
-          </div>
-        </Card>
+      <div className="border border-neutral-900 bg-neutral-950">
+        <div className="border-b border-neutral-900 px-4 py-3">
+          <span className="text-xs uppercase tracking-wider text-neutral-500">weekly variance flags</span>
+        </div>
 
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Litres at Variance
-          </div>
-          <div className="text-xl font-bold text-foreground font-mono tabular-nums mt-1">
-            {formatNumber(totalOpenLitres, 1)} L
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            Beyond expected burn
-          </div>
-        </Card>
-
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Est. Naira Impact
-          </div>
-          <div className="text-xl font-bold text-amber-700 dark:text-amber-400 font-mono tabular-nums mt-1">
-            {formatNaira(totalOpenNaira)}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            At current pump rates
-          </div>
-        </Card>
-
-        <Card className="p-3">
-          <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            Explained Weeks
-          </div>
-          <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 font-mono tabular-nums mt-1">
-            {explainedFlags.length}
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            Documented reasons
-          </div>
-        </Card>
-      </div>
-
-      {/* Variance Flags List */}
-      <div className="space-y-4">
-        <h2 className="text-sm font-semibold tracking-tight uppercase text-muted-foreground">
-          Weekly Generator Consumption Audits
-        </h2>
-
-        {isLoading ? (
-          <div className="p-8 text-center text-xs text-muted-foreground border rounded-lg bg-card">
-            Calculating weekly fuel burn vs purchases...
-          </div>
-        ) : flags.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground border rounded-lg bg-card">
-            No generator activity recorded yet.
+        {flags.length === 0 ? (
+          <div className="p-8 text-center text-xs text-neutral-500">
+            no unexplained variance flags detected. consumption is within tolerance.
           </div>
         ) : (
-          <div className="space-y-3">
-            {flags.map((flag: any) => {
-              const isFlagged = flag.isVariance;
-              const isOpen = flag.status === "open" && isFlagged;
-              const isExplained = flag.status === "explained";
-
+          <div className="flex flex-col divide-y divide-neutral-900 text-xs">
+            {flags.map((flag) => {
+              const isOpen = flag.status === "open";
               return (
                 <div
-                  key={`${flag.generatorId}-${flag.weekStart}`}
-                  className={`rounded-lg border p-4 transition-all ${
-                    isOpen
-                      ? "border-amber-500/40 bg-amber-500/5 shadow-xs"
-                      : isExplained
-                      ? "border-emerald-500/30 bg-card"
-                      : "border-border bg-card"
-                  }`}
+                  key={flag.id}
+                  onClick={() => handleOpenModal(flag)}
+                  className="flex cursor-pointer flex-col justify-between gap-3 p-4 transition-colors hover:bg-neutral-900/40 sm:flex-row sm:items-center"
                 >
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    {/* Generator & Week Info */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-foreground">
-                          {flag.generatorName}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          Week of {flag.weekStart}
-                        </span>
-
-                        {/* Status Badges */}
-                        {isOpen ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-500/20 text-amber-800 dark:text-amber-200 border-amber-500/40 text-[10px] font-bold uppercase tracking-wider"
-                          >
-                            Unexplained Variance
-                          </Badge>
-                        ) : isExplained ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px] font-bold"
-                          >
-                            ✓ Explained
-                          </Badge>
-                        ) : flag.status === "dismissed" ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-muted text-muted-foreground text-[10px]"
-                          >
-                            Dismissed
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-500/5 text-emerald-700 dark:text-emerald-400 border-emerald-500/20 text-[10px]"
-                          >
-                            Nominal (within ±{tolerancePct}%)
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Numbers Bar */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>
-                          Bought: <strong className="text-foreground">{formatNumber(flag.litresBought, 1)} L</strong>
-                        </span>
-                        <span>
-                          Run-Time: <strong className="text-foreground">{formatNumber(flag.totalHours, 1)} hrs</strong>
-                        </span>
-                        <span>
-                          Expected Burn: <strong className="text-foreground">{formatNumber(flag.litresExpected, 1)} L</strong>
-                        </span>
-                        <span>
-                          Variance:{" "}
-                          <strong
-                            className={
-                              flag.varianceLitres > 0 && isFlagged
-                                ? "text-amber-700 dark:text-amber-400 font-bold"
-                                : "text-foreground"
-                            }
-                          >
-                            {flag.varianceLitres > 0 ? "+" : ""}
-                            {formatNumber(flag.varianceLitres, 1)} L ({flag.variancePct > 0 ? "+" : ""}
-                            {formatNumber(flag.variancePct, 1)}%)
-                          </strong>
-                        </span>
-                        {flag.estimatedNairaImpact > 0 && (
-                          <span>
-                            Est. Impact:{" "}
-                            <strong className="text-amber-700 dark:text-amber-400 font-bold">
-                              {formatNaira(flag.estimatedNairaImpact)}
-                            </strong>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Explanation note if recorded */}
-                      {flag.explanation && (
-                        <div className="text-xs bg-muted/60 rounded px-2.5 py-1.5 mt-2 text-foreground flex items-start gap-1.5">
-                          <IconCheck className="size-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold text-muted-foreground mr-1">
-                              Recorded Reason:
-                            </span>
-                            <span>{flag.explanation}</span>
-                          </div>
-                        </div>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {isOpen ? (
+                        <IconAlertTriangle className="size-4 text-amber-400" />
+                      ) : (
+                        <IconCircleCheck className="size-4 text-emerald-400" />
                       )}
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-xs gap-1"
-                        onClick={() => openResolveModal(flag)}
-                      >
-                        <IconEdit className="size-3.5" />
-                        {flag.explanation ? "Update Note" : "Explain / Resolve"}
-                      </Button>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-neutral-200">
+                          {flag.generatorName}
+                        </span>
+                        <span className="text-neutral-500">·</span>
+                        <span className="text-neutral-400">week of {flag.weekStart}</span>
+                        <span
+                          className={`px-1.5 py-0.2 text-[10px] uppercase tracking-wider border ${
+                            isOpen
+                              ? "border-amber-900/60 bg-amber-950/20 text-amber-400"
+                              : "border-neutral-800 bg-neutral-900 text-neutral-400"
+                          }`}
+                        >
+                          {flag.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-1 text-[11px] text-neutral-500">
+                        bought: {flag.litresBought}L · expected burn: {flag.litresExpected}L · variance: {flag.variancePct > 0 ? "+" : ""}{flag.variancePct.toFixed(1)}% ({flag.varianceLitres > 0 ? "+" : ""}{flag.varianceLitres.toFixed(1)}L)
+                      </div>
+
+                      {flag.notes && (
+                        <div className="mt-1 text-[11px] text-neutral-400">
+                          documented: {flag.notes}
+                        </div>
+                      )}
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                    <div className="text-left sm:text-right">
+                      <div className="font-semibold text-sky-400">
+                        {formatNaira(flag.estimatedNairaImpact)} impact
+                      </div>
+                      <div className="text-[11px] text-neutral-500">estimated value</div>
+                    </div>
+                    <IconChevronRight className="size-4 text-neutral-600" />
                   </div>
                 </div>
               );
@@ -378,80 +241,109 @@ export default function VarianceRoute() {
         )}
       </div>
 
-      {/* Resolution Dialog */}
-      <Dialog open={!!selectedFlag} onOpenChange={(open) => !open && setSelectedFlag(null)}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleResolveSubmit}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <IconAlertTriangle className="size-5 text-amber-600" />
-                Resolve Variance Flag
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                {selectedFlag?.generatorName} — Week of {selectedFlag?.weekStart} (+{formatNumber(selectedFlag?.variancePct || 0, 1)}% variance, ~{formatNaira(selectedFlag?.estimatedNairaImpact || 0)})
-              </DialogDescription>
-            </DialogHeader>
+      {selectedFlag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg border border-neutral-800 bg-black p-5 text-xs text-neutral-100">
+            <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+              <span className="text-xs uppercase tracking-wider text-neutral-400">
+                review variance flag · {selectedFlag.generatorName}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedFlag(null)}
+                className="text-neutral-500 hover:text-white"
+              >
+                <IconX className="size-4" />
+              </button>
+            </div>
 
-            <div className="space-y-3.5 py-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Status</Label>
-                <Select
-                  value={modalStatus}
-                  onValueChange={(val: any) => setModalStatus(val)}
-                >
-                  <SelectTrigger className="w-full text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="explained" className="text-xs">
-                      Explained (Reserve fuel, heavy cooling, carry-over)
-                    </SelectItem>
-                    <SelectItem value="dismissed" className="text-xs">
-                      Dismissed (Measurement rounding or test run)
-                    </SelectItem>
-                    <SelectItem value="open" className="text-xs">
-                      Open (Under investigation)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="mt-4 flex flex-col gap-2.5 border-b border-neutral-900 pb-4">
+              <div className="flex justify-between">
+                <span className="text-neutral-500">week starting</span>
+                <span className="text-neutral-200">{selectedFlag.weekStart}</span>
               </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Reason / Explanation Note</Label>
-                <Input
-                  value={explanationText}
-                  onChange={(e) => setExplanationText(e.target.value)}
-                  placeholder="e.g. 25L reserve jerrycan kept in store for weekend backup"
-                  className="text-xs"
-                  required={modalStatus === "explained"}
-                />
-                <span className="text-[10px] text-muted-foreground block">
-                  Quick options: "Reserve jerrycan stored", "Ran extra deep-freezers for ice blocks", "Fuel carry-over to next week".
+              <div className="flex justify-between">
+                <span className="text-neutral-500">fuel bought</span>
+                <span className="text-neutral-200">{selectedFlag.litresBought} L</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">expected fuel burn</span>
+                <span className="text-neutral-200">{selectedFlag.litresExpected} L</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">unexplained difference</span>
+                <span className="text-amber-400">
+                  {selectedFlag.varianceLitres > 0 ? "+" : ""}{selectedFlag.varianceLitres} L ({selectedFlag.variancePct > 0 ? "+" : ""}{selectedFlag.variancePct.toFixed(1)}%)
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-neutral-500">estimated financial impact</span>
+                <span className="font-semibold text-sky-400">
+                  {formatNaira(selectedFlag.estimatedNairaImpact)}
                 </span>
               </div>
             </div>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedFlag(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isResolving}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
-              >
-                {isResolving ? "Saving..." : "Save Resolution"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </main>
+            <form onSubmit={handleResolveSubmit} className="mt-4 flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-neutral-400">benign cause</label>
+                <select
+                  value={selectedCause}
+                  onChange={(e) => setSelectedCause(e.target.value)}
+                  className="border border-neutral-800 bg-neutral-950 px-3 py-2 text-neutral-100 outline-none"
+                >
+                  {BENIGN_CAUSES.map((c) => (
+                    <option key={c.id} value={c.label}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-neutral-400">operational explanation / context</label>
+                <textarea
+                  rows={2}
+                  value={explanationText}
+                  onChange={(e) => setExplanationText(e.target.value)}
+                  placeholder="e.g. Bought 2 x 20L yellow jerrycans stored behind shop for weekend outage."
+                  className="border border-neutral-800 bg-neutral-950 px-3 py-2 text-neutral-100 outline-none"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-neutral-400">status resolution</label>
+                <select
+                  value={modalStatus}
+                  onChange={(e) => setModalStatus(e.target.value as "open" | "explained" | "dismissed")}
+                  className="border border-neutral-800 bg-neutral-950 px-3 py-2 text-neutral-100 outline-none"
+                >
+                  <option value="explained">Explained (Benign cause recorded)</option>
+                  <option value="dismissed">Dismissed (Tolerable normal fluctuation)</option>
+                  <option value="open">Keep Open (Requires investigation)</option>
+                </select>
+              </div>
+
+              <div className="mt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedFlag(null)}
+                  className="border border-neutral-800 bg-neutral-950 px-3 py-1.5 text-neutral-400 hover:text-white"
+                >
+                  cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResolving}
+                  className="border border-neutral-800 bg-neutral-900 px-4 py-1.5 uppercase tracking-wider text-neutral-200 transition-colors hover:border-neutral-500 hover:text-white disabled:opacity-50"
+                >
+                  {isResolving ? "saving..." : "update flag"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

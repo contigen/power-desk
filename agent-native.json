@@ -3,7 +3,7 @@
     "homePath": "/"
   },
   "agent": {
-    "engine": "openai",
+    "engine": "ai-sdk:openai",
     "model": "muse-spark-1.3"
   },
   "doctor": {

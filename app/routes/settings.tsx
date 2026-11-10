@@ -1,457 +1,211 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import {
-  useActionQuery,
-  useActionMutation,
-} from "@agent-native/core/client/hooks";
-import {
-  LanguagePicker,
-  openAgentSettings,
-} from "@agent-native/toolkit/app/shared";
-import { ChangelogSettingsCard } from "@agent-native/toolkit/app/changelog";
-import { useSetPageTitle } from "@/components/layout/HeaderActions";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { APP_TITLE } from "@/lib/app-config";
+import { useActionQuery, useActionMutation } from "@agent-native/core/client/hooks";
 import {
   IconSettings,
-  IconAlertTriangle,
-  IconDeviceMobile,
   IconRefresh,
   IconSend,
-  IconClock,
-  IconBuildingStore,
-  IconCheck,
   IconAlertCircle,
+  IconCheck,
 } from "@tabler/icons-react";
-import changelog from "../../CHANGELOG.md?raw";
+
+type SettingsData = {
+  tolerancePct?: number;
+  telegramChatId?: string | null;
+  showSampleData?: boolean;
+};
 
 export function meta() {
-  return [{ title: `Settings - ${APP_TITLE}` }];
+  return [
+    { title: "Settings - Power Desk" },
+    {
+      name: "description",
+      content: "Operational tolerances, Telegram bot connectivity, and data honesty settings.",
+    },
+  ];
 }
 
 export default function SettingsRoute() {
-  useSetPageTitle("Settings");
+  const { data: settingsData, refetch } = useActionQuery("get-settings", {});
+  const { mutate: setSettings, isPending: isSaving } = useActionMutation("set-settings");
+  const { mutate: resetSample, isPending: isResetting } = useActionMutation("reset-sample-data");
+  const { mutate: sendSummary, isPending: isSendingSummary } = useActionMutation("weekly-summary");
 
-  const { data: settingsData, refetch } = useActionQuery(
-    "get-settings",
-    {}
-  );
-  const { mutate: updateSettings, isPending: isUpdating } =
-    useActionMutation("set-settings");
-  const { mutate: resetSample, isPending: isResetting } =
-    useActionMutation("reset-sample-data");
-  const { mutate: triggerSummary, isPending: isTriggering } =
-    useActionMutation("weekly-summary");
-
-  const settings = settingsData || {};
-
-  // Form local state
-  const [tolerancePct, setTolerancePct] = useState(15);
-  const [showSampleData, setShowSampleData] = useState(true);
-  const [telegramChatId, setTelegramChatId] = useState("");
-  const [weeklySummaryDay, setWeeklySummaryDay] = useState("Sunday");
-  const [weeklySummaryTime, setWeeklySummaryTime] = useState("18:00");
-  const [summaryStatusMessage, setSummaryStatusMessage] = useState<string | null>(null);
-
-  // Reset confirmation modal
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [tolerancePct, setTolerancePct] = useState<number>(10);
+  const [telegramChatId, setTelegramChatId] = useState<string>("");
+  const [enableSample, setEnableSample] = useState<boolean>(true);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [testSuccess, setTestSuccess] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!settingsData) return;
-    if (settingsData.tolerancePct !== undefined) {
-      setTolerancePct(Number(settingsData.tolerancePct));
-    }
-    if (settingsData.showSampleData !== undefined) {
-      setShowSampleData(Boolean(settingsData.showSampleData));
-    }
-    if (settingsData.telegramChatId) {
-      setTelegramChatId(settingsData.telegramChatId);
-    }
-    if (settingsData.weeklySummaryDay) {
-      setWeeklySummaryDay(settingsData.weeklySummaryDay);
-    }
-    if (settingsData.weeklySummaryTime) {
-      setWeeklySummaryTime(settingsData.weeklySummaryTime);
+    if (settingsData) {
+      const s = settingsData as SettingsData;
+      if (s.tolerancePct !== undefined) setTolerancePct(s.tolerancePct);
+      if (s.telegramChatId !== undefined && s.telegramChatId !== null) setTelegramChatId(s.telegramChatId);
+      if (s.showSampleData !== undefined) setEnableSample(s.showSampleData);
     }
   }, [settingsData]);
 
-  const handleSaveSettings = () => {
-    updateSettings(
+  function handleSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSaveSuccess(false);
+
+    setSettings(
       {
         tolerancePct,
-        showSampleData,
-        telegramChatId: telegramChatId || undefined,
-        weeklySummaryDay,
-        weeklySummaryTime,
+        telegramChatId: telegramChatId || null,
+        showSampleData: enableSample,
       },
       {
         onSuccess: () => {
+          setSaveSuccess(true);
           refetch();
+          setTimeout(() => setSaveSuccess(false), 3000);
         },
       }
     );
-  };
+  }
 
-  const handleToggleSampleData = (checked: boolean) => {
-    setShowSampleData(checked);
-    updateSettings(
-      {
-        showSampleData: checked,
-      },
-      {
-        onSuccess: () => refetch(),
-      }
-    );
-  };
-
-  const handleResetSampleConfirm = () => {
+  function handleResetSample() {
     resetSample(
       {},
       {
         onSuccess: () => {
-          setIsResetModalOpen(false);
           refetch();
         },
       }
     );
-  };
+  }
 
-  const handleTriggerSummaryNow = () => {
-    setSummaryStatusMessage(null);
-    triggerSummary(
+  function handleTestTelegram() {
+    setTestSuccess(false);
+    sendSummary(
       { sendTelegram: true },
       {
-        onSuccess: (data: any) => {
-          setSummaryStatusMessage(
-            data?.telegramSent
-              ? `✓ Summary sent successfully to Telegram chat ${data.chatId || ""}`
-              : "✓ Weekly summary generated! (Add Telegram Chat ID below to receive directly on phone)."
-          );
-        },
-        onError: (err: any) => {
-          setSummaryStatusMessage(`Notice: ${err?.message || "Failed to deliver"}`);
+        onSuccess: () => {
+          setTestSuccess(true);
+          setTimeout(() => setTestSuccess(false), 3000);
         },
       }
     );
-  };
+  }
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 sm:px-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          System Settings
-        </h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Configure variance detection thresholds, Telegram bot connection, sample data visibility, and automations.
-        </p>
+    <div className="flex flex-col gap-6 font-mono text-neutral-100">
+      <div className="flex flex-col justify-between gap-4 border-b border-neutral-900 pb-4 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-white">system & operational settings</h1>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            operational tolerances, telegram ledger connectivity, and benchmark data controls
+          </p>
+        </div>
       </div>
 
-      {/* 1. Variance Detection Sensitivity */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <IconAlertTriangle className="size-5 text-amber-600" />
-              Variance Detection Threshold
-            </CardTitle>
-            <Badge variant="outline" className="font-mono text-xs">
-              ±{tolerancePct}% Tolerance
-            </Badge>
-          </div>
-          <CardDescription className="text-xs">
-            Percentage discrepancy between fuel bought and expected engine burn before flagging an unexplained variance.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
-              <Label>Tolerance Band (±%)</Label>
-              <span className="font-bold font-mono">{tolerancePct}%</span>
+      <form onSubmit={handleSave} className="flex flex-col gap-6">
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-400">variance detection tolerance</span>
+          <div className="mt-4 flex flex-col gap-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-neutral-400">trigger flag when discrepancy exceeds</span>
+              <span className="font-semibold text-sky-400">±{tolerancePct}%</span>
             </div>
-            <Slider
-              value={[tolerancePct]}
-              onValueChange={(val) => setTolerancePct(val[0] ?? 15)}
-              min={5}
-              max={30}
-              step={1}
+            <input
+              type="range"
+              min="5"
+              max="30"
+              step="1"
+              value={tolerancePct}
+              onChange={(e) => setTolerancePct(parseInt(e.target.value, 10))}
+              className="accent-sky-400"
             />
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>5% (Strict auditing)</span>
-              <span>15% (Recommended for Lagos SME load swings)</span>
-              <span>30% (Loose tolerance)</span>
-            </div>
+            <span className="text-[11px] text-neutral-500">
+              Flags are generated when weekly litres bought exceed expected burn by more than {tolerancePct}%.
+            </span>
           </div>
+        </div>
 
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              onClick={handleSaveSettings}
-              disabled={isUpdating}
-              className="text-xs font-medium"
-            >
-              {isUpdating ? "Saving..." : "Save Tolerance"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 2. Sample Data & Honesty Controls */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <IconBuildingStore className="size-5 text-emerald-600" />
-            Demonstration & Sample Data
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Toggle or reseed the built-in sample scenario for Adewale Provisions Store.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/40">
-            <div className="space-y-0.5">
-              <Label className="text-xs font-semibold">
-                Show Sample Demonstration Data
-              </Label>
-              <p className="text-[11px] text-muted-foreground">
-                When enabled, sample entries for Adewale Provisions Store are visible with a 🧪 Sample badge. Real user entries are always preserved separately.
-              </p>
-            </div>
-            <Switch
-              checked={showSampleData}
-              onCheckedChange={handleToggleSampleData}
-            />
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <p className="text-[11px] text-muted-foreground">
-              Need to restore original demo entries? Only records with <code>is_sample: true</code> will be reset.
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs gap-1.5"
-              onClick={() => setIsResetModalOpen(true)}
-            >
-              <IconRefresh className="size-3.5" />
-              Reset Sample Data
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3. Telegram Integration & Test Trigger */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <IconDeviceMobile className="size-5 text-sky-600" />
-            Telegram Bot Integration
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Connect your Telegram bot to receive fuel logging texts and send automated weekly rollups.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Telegram Chat ID</Label>
-              <Input
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-400">telegram bot ledger integration</span>
+          <div className="mt-4 flex flex-col gap-3 text-xs">
+            <div className="flex flex-col gap-1">
+              <label className="text-neutral-400">owner telegram chat id</label>
+              <input
+                type="text"
                 value={telegramChatId}
                 onChange={(e) => setTelegramChatId(e.target.value)}
-                placeholder="e.g. 123456789 or @channel"
-                className="text-xs font-mono"
+                placeholder="e.g. 1649626606"
+                className="border border-neutral-800 bg-black px-3 py-2 text-neutral-100 outline-none focus:border-neutral-500"
               />
-              <span className="text-[10px] text-muted-foreground block">
-                Message <code>/start</code> to your bot on Telegram to obtain your Chat ID.
-              </span>
             </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Webhook Endpoint</Label>
-              <Input
-                readOnly
-                value="/_agent-native/integrations/telegram/webhook"
-                className="text-xs font-mono bg-muted/60"
-              />
-              <span className="text-[10px] text-muted-foreground block">
-                Agent-Native built-in webhook endpoint.
+            <div className="flex items-center justify-between border-t border-neutral-900 pt-3">
+              <span className="text-[11px] text-neutral-500">
+                Bot: @PowerDeskBot · Receives weekly briefing & real-time alerts
               </span>
+              <button
+                type="button"
+                disabled={isSendingSummary}
+                onClick={handleTestTelegram}
+                className="border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 hover:text-white disabled:opacity-50"
+              >
+                {isSendingSummary ? "sending..." : testSuccess ? "briefing sent" : "send test briefing"}
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="p-3 rounded-lg border border-sky-500/20 bg-sky-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-semibold text-sky-950 dark:text-sky-200">
-                Weekly Summary Dispatch
+        <div className="border border-neutral-900 bg-neutral-950 p-4">
+          <span className="text-xs uppercase tracking-wider text-neutral-400">benchmark sample data & honesty</span>
+          <div className="mt-4 flex flex-col gap-4 text-xs">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="font-semibold text-neutral-200">enable benchmark sample data</span>
+                <p className="text-[11px] text-neutral-500">
+                  Shows seeded Lagos retail benchmarks clearly marked as sample data.
+                </p>
               </div>
-              <p className="text-[11px] text-sky-800 dark:text-sky-300">
-                Test the weekly ledger breakdown right now. Dispatches to Telegram and calculates net fuel metrics.
-              </p>
+              <input
+                type="checkbox"
+                checked={enableSample}
+                onChange={(e) => setEnableSample(e.target.checked)}
+                className="size-4 accent-sky-400"
+              />
             </div>
-            <Button
-              size="sm"
-              className="bg-sky-600 hover:bg-sky-700 text-white font-medium text-xs gap-1.5 shrink-0"
-              onClick={handleTriggerSummaryNow}
-              disabled={isTriggering}
-            >
-              <IconSend className="size-3.5" />
-              {isTriggering ? "Sending..." : "Send Summary Now"}
-            </Button>
-          </div>
 
-          {summaryStatusMessage && (
-            <div className="text-xs p-2.5 rounded bg-muted text-foreground flex items-center gap-1.5">
-              <IconCheck className="size-4 text-emerald-600 shrink-0" />
-              <span>{summaryStatusMessage}</span>
+            <div className="flex items-center justify-between border-t border-neutral-900 pt-3">
+              <span className="text-[11px] text-neutral-500">
+                Reseeds the initial benchmark dataset for Adewale Provisions Store.
+              </span>
+              <button
+                type="button"
+                disabled={isResetting}
+                onClick={handleResetSample}
+                className="border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-xs text-neutral-300 hover:border-neutral-600 hover:text-white disabled:opacity-50"
+              >
+                {isResetting ? "resetting..." : "reset benchmark data"}
+              </button>
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-neutral-900 pt-4">
+          {saveSuccess ? (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <IconCheck className="size-4" />
+              <span>settings updated successfully</span>
+            </span>
+          ) : (
+            <span className="text-xs text-neutral-500">settings apply across web and telegram</span>
           )}
 
-          <div className="flex justify-end pt-2">
-            <Button
-              size="sm"
-              onClick={handleSaveSettings}
-              disabled={isUpdating}
-              className="text-xs font-medium"
-            >
-              Save Telegram Settings
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 4. Automated Weekly Schedule */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <IconClock className="size-5 text-amber-500" />
-            Automated Weekly Schedule
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Configures the background automation job defined in <code>jobs/weekly-summary.md</code>.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Summary Day</Label>
-              <Select
-                value={weeklySummaryDay}
-                onValueChange={setWeeklySummaryDay}
-              >
-                <SelectTrigger className="w-full text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Sunday" className="text-xs">Sunday (Standard)</SelectItem>
-                  <SelectItem value="Monday" className="text-xs">Monday Morning</SelectItem>
-                  <SelectItem value="Friday" className="text-xs">Friday Evening</SelectItem>
-                  <SelectItem value="Saturday" className="text-xs">Saturday</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Time (WAT - Lagos)</Label>
-              <Input
-                type="time"
-                value={weeklySummaryTime}
-                onChange={(e) => setWeeklySummaryTime(e.target.value)}
-                className="text-xs"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 5. Language & Framework Defaults */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Interface Language</CardTitle>
-          <CardDescription className="text-xs">
-            Select system display language.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="max-w-xs space-y-1.5">
-          <LanguagePicker label="Language" />
-        </CardContent>
-      </Card>
-
-      {/* 6. Agent Native Framework Settings */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Agent Assistant Engine</CardTitle>
-          <CardDescription className="text-xs">
-            Model provider configurations and tools.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" size="sm" onClick={() => openAgentSettings()} className="text-xs">
-            Open Agent Settings
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Reset Confirmation Dialog */}
-      <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-600">
-              <IconAlertCircle className="size-5" />
-              Reset Sample Data?
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              This will re-seed the demonstration generators, fuel logs, and variance records for Adewale Provisions Store. Your real entries (logged via Web or Telegram) will remain untouched.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsResetModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={isResetting}
-              className="bg-amber-600 hover:bg-amber-700 text-white font-medium"
-              onClick={handleResetSampleConfirm}
-            >
-              {isResetting ? "Resetting..." : "Reset Sample Data"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </main>
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="border border-neutral-800 bg-neutral-900 px-5 py-2 uppercase tracking-wider text-neutral-200 transition-colors hover:border-neutral-500 hover:text-white disabled:opacity-50"
+          >
+            {isSaving ? "saving..." : "save settings"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

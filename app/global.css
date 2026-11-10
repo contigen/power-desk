@@ -1,94 +1,99 @@
-@import "@fontsource-variable/inter";
+@import "@fontsource/geist-mono/index.css";
 @import "tailwindcss";
 @import "@agent-native/toolkit/styles.css";
 
 @source "./**/*.{ts,tsx}";
 
 :root {
-  --background: 40 20% 98%;
-  --foreground: 30 15% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 30 15% 12%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 30 15% 12%;
-  --primary: 32 95% 44%; /* Warm amber fuel gauge accent */
+  --background: 0 0% 2%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 3.5%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 3.5%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 199 89% 48%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 35 25% 93%;
-  --secondary-foreground: 30 15% 15%;
-  --muted: 35 20% 94%;
-  --muted-foreground: 30 8% 46%;
-  --accent: 38 90% 50%;
+  --secondary: 0 0% 8%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 8%;
+  --muted-foreground: 0 0% 55%;
+  --accent: 38 92% 50%;
   --accent-foreground: 0 0% 100%;
-  --destructive: 0 84% 60%;
+  --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
-  --border: 35 15% 88%;
-  --input: 35 15% 88%;
-  --ring: 32 95% 44%;
-  --radius: 0.625rem;
-  --sidebar-background: 35 25% 96%;
-  --sidebar-foreground: 30 10% 40%;
-  --sidebar-primary: 32 95% 44%;
+  --border: 0 0% 12%;
+  --input: 0 0% 12%;
+  --ring: 199 89% 48%;
+  --radius: 0px;
+  --sidebar-background: 0 0% 2%;
+  --sidebar-foreground: 0 0% 60%;
+  --sidebar-primary: 199 89% 48%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 35 25% 91%;
-  --sidebar-accent-foreground: 30 15% 12%;
-  --sidebar-border: 35 15% 88%;
-  --sidebar-ring: 32 95% 44%;
+  --sidebar-accent: 0 0% 8%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-ring: 199 89% 48%;
 }
 
 .dark {
-  --background: 24 15% 7%;
-  --foreground: 35 20% 94%;
-  --card: 24 14% 10%;
-  --card-foreground: 35 20% 94%;
-  --popover: 24 14% 10%;
-  --popover-foreground: 35 20% 94%;
-  --primary: 36 100% 50%; /* Radiant fuel warning amber */
-  --primary-foreground: 24 15% 7%;
-  --secondary: 24 10% 15%;
-  --secondary-foreground: 35 20% 90%;
-  --muted: 24 10% 14%;
-  --muted-foreground: 35 10% 60%;
-  --accent: 36 95% 48%;
-  --accent-foreground: 24 15% 7%;
+  --background: 0 0% 2%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 3.5%;
+  --card-foreground: 0 0% 96%;
+  --popover: 0 0% 3.5%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 0 0% 8%;
+  --secondary-foreground: 0 0% 92%;
+  --muted: 0 0% 8%;
+  --muted-foreground: 0 0% 55%;
+  --accent: 38 92% 50%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 98%;
-  --border: 24 10% 18%;
-  --input: 24 10% 18%;
-  --ring: 36 100% 50%;
-  --radius: 0.625rem;
-  --sidebar-background: 24 16% 8%;
-  --sidebar-foreground: 35 10% 60%;
-  --sidebar-primary: 36 100% 50%;
-  --sidebar-primary-foreground: 24 15% 7%;
-  --sidebar-accent: 24 12% 14%;
-  --sidebar-accent-foreground: 35 20% 94%;
-  --sidebar-border: 24 10% 16%;
-  --sidebar-ring: 36 100% 50%;
+  --border: 0 0% 12%;
+  --input: 0 0% 12%;
+  --ring: 199 89% 48%;
+  --radius: 0px;
+  --sidebar-background: 0 0% 2%;
+  --sidebar-foreground: 0 0% 60%;
+  --sidebar-primary: 199 89% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 8%;
+  --sidebar-accent-foreground: 0 0% 96%;
+  --sidebar-border: 0 0% 12%;
+  --sidebar-ring: 199 89% 48%;
 }
 
 @layer base {
   body {
     @apply bg-background text-foreground;
-    font-family: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "Geist Mono", monospace;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    letter-spacing: -0.01em;
   }
 
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
+  button, input, select, textarea {
+    font-family: inherit;
+  }
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #000000;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 4px;
+  background: #27272a;
+  border-radius: 0px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+  background: #3f3f46;
 }

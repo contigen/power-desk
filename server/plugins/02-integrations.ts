@@ -2,6 +2,7 @@ import {
   createIntegrationsPlugin,
   telegramAdapter,
   loadActionsFromStaticRegistry,
+  recordChange,
 } from "@agent-native/core/server";
 import actionsRegistry from "../../.generated/actions-registry.js";
 import logFuelAction from "../../actions/log-fuel.js";
@@ -33,26 +34,27 @@ When the user texts fuel purchases (e.g. "bought 40L at 1250") or run-hours ("ge
     if (lower === "/start" || lower === "start" || lower === "hi" || lower === "hello") {
       return {
         handled: true,
-        responseText: `⚡ Welcome to Power Desk!
+        responseText: `Welcome to Power Desk.
 
-I am your fuel and generator ledger assistant for Nigerian businesses.
+Fuel and generator ledger assistant for Nigerian businesses.
 
-You can text me naturally anytime:
-• "bought 40L at 1250, gen ran 6h"
-• "I buy 25 litre for 1320 at Total"
-• "gen ran like 6 hours heavy load"
-• "is anything off this week?"
-• "is solar worth it?"
-• "/undo" to revert your last entry
-• "/week" to get this week's briefing
+You can text naturally:
+- "bought 40L at 1250, gen ran 6h"
+- "I buy 25 litre for 1320 at Total"
+- "gen ran like 6 hours heavy load"
+- "is anything off this week?"
+- "is solar worth it?"
+- "/undo" to revert your last entry
+- "/week" to get this week's briefing
 
-All entries update your live ledger in real-time.`,
+All entries update your live ledger.`,
       };
     }
 
     // 2. Undo command
     if (lower === "/undo" || lower === "undo" || lower.includes("undo last")) {
       const res = await undoLastEntryAction.run({ confirm: true });
+      await recordChange({ source: "action", type: "change", key: "undo-last-entry" });
       return {
         handled: true,
         responseText: res.message,
@@ -81,11 +83,11 @@ All entries update your live ledger in real-time.`,
         const f = openFlags[0] as any;
         return {
           handled: true,
-          responseText: `⚠️ Unexplained Variance detected for ${f.generatorName}:
-• Week: ${f.weekStart}
-• Fuel bought: ${f.litresBought}L
-• Expected burn: ${f.litresExpected}L (${f.variancePct > 0 ? "+" : ""}${Number(f.variancePct).toFixed(1)}%)
-• Estimated impact: ${f.estimatedNairaFormatted}
+          responseText: `Unexplained variance detected for ${f.generatorName}:
+- Week: ${f.weekStart}
+- Fuel bought: ${f.litresBought}L
+- Expected burn: ${f.litresExpected}L (${f.variancePct > 0 ? "+" : ""}${Number(f.variancePct).toFixed(1)}%)
+- Estimated impact: ${f.estimatedNairaFormatted}
 
 Plausible benign explanations to check first:
 1. Jerrycan reserve: Fuel bought in jerrycans and stored for later.
@@ -93,12 +95,12 @@ Plausible benign explanations to check first:
 3. Heavy load: Extra refrigeration or machinery running.
 4. Missing run hours: Generator operated without being logged.
 
-You can document and explain this in the web app at /variance.`,
+Document or explain this in the web app at /variance.`,
         };
       }
       return {
         handled: true,
-        responseText: `✅ Generator consumption is within normal tolerance band. No open unexplained variance flags.`,
+        responseText: `Generator consumption is within normal tolerance band. No open unexplained variance flags.`,
       };
     }
 
@@ -112,14 +114,14 @@ You can document and explain this in the web app at /variance.`,
       const res = await breakEvenAction.run({});
       return {
         handled: true,
-        responseText: `☀️ Solar vs Generator Analysis:
-• Current generator monthly spend: ${res.formatted.monthlyGeneratorCost} (fuel + servicing)
-• Equivalent solar monthly cost: ${res.formatted.monthlySolarEquivalent}
-• Net monthly savings: ${res.formatted.monthlySavings}
-• Payback period: ${res.paybackMonths ?? "N/A"} months
-• 5-Year cumulative net savings: ${res.formatted.net5YearSavings}
+        responseText: `Solar vs Generator Analysis:
+- Current generator monthly spend: ${res.formatted.monthlyGeneratorCost} (fuel + servicing)
+- Equivalent solar monthly cost: ${res.formatted.monthlySolarEquivalent}
+- Net monthly savings: ${res.formatted.monthlySavings}
+- Payback period: ${res.paybackMonths ?? "N/A"} months
+- 5-Year cumulative net savings: ${res.formatted.net5YearSavings}
 
-Open your Power Desk web app to use the interactive Generative UI simulator and save quotes.`,
+Open your Power Desk web app to use the interactive simulator and save quotes.`,
       };
     }
 
@@ -155,6 +157,7 @@ Open your Power Desk web app to use the interactive Generative UI simulator and 
             source: "telegram",
             generator: gen,
           });
+          await recordChange({ source: "action", type: "change", key: "log-fuel" });
           if (fuelRes.confirmation) {
             confirmations.push(fuelRes.confirmation);
           }
@@ -178,6 +181,7 @@ Open your Power Desk web app to use the interactive Generative UI simulator and 
             source: "telegram",
             generator: gen,
           });
+          await recordChange({ source: "action", type: "change", key: "log-run" });
           if (runRes.confirmation) {
             confirmations.push(runRes.confirmation);
           }

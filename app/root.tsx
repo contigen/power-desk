@@ -81,6 +81,10 @@ function DbSyncSetup() {
   useDbSync({
     queryClient: qc,
     ignoreSource: TAB_ID,
+    onEvent: (data) => {
+      if (data.requestSource === TAB_ID) return;
+      qc.invalidateQueries({ queryKey: ["action"] });
+    },
   });
   return null;
 }
@@ -129,7 +133,17 @@ function AppContent() {
 }
 
 export default function Root() {
-  const [queryClient] = useState(() => createAgentNativeQueryClient());
+  const [queryClient] = useState(() =>
+    createAgentNativeQueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 0,
+          refetchOnWindowFocus: true,
+          refetchIntervalInBackground: true,
+        },
+      },
+    })
+  );
   return (
     <AppProviders queryClient={queryClient} i18n={{ catalog: i18nCatalog }}>
       <DbSyncSetup />

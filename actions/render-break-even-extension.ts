@@ -255,11 +255,22 @@ function solarCalculator() {
 </script>
 `;
 
+    const extId = `inline-solar-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
     return {
+      ok: true,
       content: htmlContent,
       name: "Solar Break-Even Simulator",
       description: "Interactive break-even tool with live sliders for generator fuel vs solar payback.",
-      initialHeight: 460,
+      initialHeight: 480,
+      inlineExtension: {
+        mode: "transient" as const,
+        id: extId,
+        name: "Solar Break-Even Simulator",
+        description: "Interactive break-even tool with live sliders for generator fuel vs solar payback.",
+        content: htmlContent,
+        initialHeight: 480,
+      },
     };
   },
 });
